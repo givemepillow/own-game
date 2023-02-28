@@ -9,12 +9,17 @@ from aiohttp.web import (
 
 if typing.TYPE_CHECKING:
     from app.utils.config import Config
+    from app.store import Store
 
 
 class Application(AiohttpApplication):
     @property
     def config(self) -> Config:
         return self['config']
+
+    @property
+    def store(self) -> Store:
+        return self['store']
 
 
 class Request(AiohttpRequest):
