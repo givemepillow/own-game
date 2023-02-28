@@ -10,6 +10,7 @@ from aiohttp.web import (
 if typing.TYPE_CHECKING:
     from app.utils.config import Config
     from app.store import Store
+    from app.bot.proxy import BotProxy
 
 
 class Application(AiohttpApplication):
@@ -20,6 +21,10 @@ class Application(AiohttpApplication):
     @property
     def store(self) -> Store:
         return self['store']
+
+    @property
+    def bot(self) -> BotProxy:
+        return self['bot_proxy']
 
 
 class Request(AiohttpRequest):
