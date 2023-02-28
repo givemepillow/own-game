@@ -1,3 +1,4 @@
+from app.store.bus import MessageBus
 from app.store.database import Database
 
 from app.web.application import Application
@@ -10,3 +11,4 @@ class Store:
 
 def setup_store(app: Application):
     app['store'] = Store(app)
+    app['bus'] = MessageBus(app)
