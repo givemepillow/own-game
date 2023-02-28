@@ -2,10 +2,15 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.store.repository import ThemeRepository, PlayerRepository, GameRepository
+
 
 class UnitOfWork:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.themes = ThemeRepository(session)
+        self.players = PlayerRepository(session)
+        self.games = GameRepository(session)
 
     async def __aenter__(self) -> Self:
         return self
