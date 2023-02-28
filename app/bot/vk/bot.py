@@ -38,7 +38,7 @@ class VkBot(AbstractBot):
             inline_keyboard=inline_keyboard
         )
 
-    async def delete(self, chat_id: int | None = None, message_id: int | None = None):
+    async def delete(self, message_id: int | None = None, chat_id: int | None = None):
         if isinstance(self._update, BotCallbackQuery):
             message_id = message_id or self._update.message_id
 

@@ -16,7 +16,7 @@ class AbstractBot(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, chat_id: int | None = None, message_id: int | None = None):
+    async def delete(self, message_id: int | None = None, chat_id: int | None = None):
         pass
 
     @abstractmethod
