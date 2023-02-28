@@ -20,8 +20,8 @@ class AbstractSignature:
 
 @dataclass
 class MessageSignature(AbstractSignature):
-    pattern: re.Pattern
     regex: str
+    pattern: re.Pattern | None = None
 
     def __post_init__(self):
         if self.regex:

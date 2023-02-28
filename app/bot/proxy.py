@@ -26,10 +26,13 @@ class BotProxy:
 
     @__call__.register
     def _(self, origin: Origin) -> AbstractBot:
-        if origin == origin.TELEGRAM:
+        print(f"{origin=}")
+        if origin == Origin.TELEGRAM:
             return TelegramBot(self._telegram_api)
         return VkBot(self._vk_api)
 
     @__call__.register
     def _(self, update: BotUpdate) -> AbstractBot:
-        pass
+        if update.origin == Origin.TELEGRAM:
+            return TelegramBot(self._telegram_api, update)
+        return VkBot(self._vk_api, update)

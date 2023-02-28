@@ -84,7 +84,7 @@ class VkAPIAccessor(CleanupCTX):
         ) as response:
             match (await response.json(content_type=response.content_type, loads=orjson.loads)):
                 case {"response": [{"conversation_message_id": conversation_message_id}, *_]} as data:
-                    self.logger.info('send_message: ' + json.dumps(data, indent=2))
+                    self.logger.debug('send_message: ' + json.dumps(data, indent=2))
                     return conversation_message_id
                 case error:
                     print(error)

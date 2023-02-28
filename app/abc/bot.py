@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
-from typing import Optional
 
 from app.bot.inline import InlineKeyboard
+from app.bot.user import BotUser
 
 
 class AbstractBot(ABC):
@@ -9,9 +9,10 @@ class AbstractBot(ABC):
     async def send(
             self,
             text: str,
-            inline_keyboard: Optional[InlineKeyboard] = None, /, *,
+            inline_keyboard: InlineKeyboard | None = None,
+            /, *,
             chat_id: int | None = None
-    ) -> int | None:
+    ) -> int:
         pass
 
     @abstractmethod
@@ -21,7 +22,8 @@ class AbstractBot(ABC):
     @abstractmethod
     async def edit(
             self,
-            text: str | None = None, /, *,
+            text: str | None = None,
+            /, *,
             inline_keyboard: InlineKeyboard | None = None,
             message_id: int | None = None,
             chat_id: int | None = None,
@@ -32,7 +34,8 @@ class AbstractBot(ABC):
     @abstractmethod
     async def callback(
             self,
-            text: str = '', /, *,
+            text: str = '',
+            /, *,
             callback_query_id: str | None = None,
             chat_id: int | None = None,
             user_id: int | None = None
@@ -40,10 +43,5 @@ class AbstractBot(ABC):
         pass
 
     @abstractmethod
-    async def get_user(
-            self,
-            chat_id: int | None = None,
-            user_id: int | None = None
-    ):
+    async def get_user(self, chat_id: int | None = None, user_id: int | None = None) -> BotUser:
         pass
-

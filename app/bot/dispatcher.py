@@ -18,7 +18,7 @@ class Dispatcher:
         self._handlers.setdefault(handler.update_type, []).append(handler)
 
     async def handle(self, update: BotUpdate) -> typing.NoReturn:
-
+        self.logger.info(f" new update {update}")
         for handler in self._handlers.get(type(update), []):
 
             if handler.signature.match(update):

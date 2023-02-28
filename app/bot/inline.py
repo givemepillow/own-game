@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Final
 
 PLUG: Final = '_'
@@ -13,7 +13,7 @@ class CallbackData:
 @dataclass(slots=True)
 class InlineButton:
     text: str = ' '
-    callback_data: CallbackData = CallbackData()
+    callback_data: CallbackData = field(default_factory=CallbackData)
 
 
 class InlineKeyboard:
