@@ -1,8 +1,8 @@
-"""migration v2
+"""migration v3
 
-Revision ID: 4a7e6b199a5e
+Revision ID: b029c0ffae8f
 Revises: 
-Create Date: 2023-02-28 17:35:43.233324
+Create Date: 2023-02-28 22:37:50.227311
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '4a7e6b199a5e'
+revision = 'b029c0ffae8f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -28,7 +28,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
-    sa.Column('chat_id', sa.Integer(), nullable=False),
+    sa.Column('chat_id', sa.BigInteger(), nullable=False),
     sa.Column('delay', sa.Integer(), nullable=False),
     sa.Column('data', sa.LargeBinary(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
@@ -61,7 +61,7 @@ def upgrade() -> None:
     )
     op.create_table('games',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('chat_id', sa.Integer(), nullable=False),
+    sa.Column('chat_id', sa.BigInteger(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('state', sa.Enum('REGISTRATION', 'SELECTION', 'QUESTION', 'ANSWER', name='gamestate'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
@@ -88,8 +88,8 @@ def upgrade() -> None:
     op.create_table('players',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
-    sa.Column('chat_id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('chat_id', sa.BigInteger(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('points', sa.Integer(), nullable=False),
     sa.Column('in_game', sa.Boolean(), nullable=True),
     sa.Column('is_current', sa.Boolean(), nullable=True),

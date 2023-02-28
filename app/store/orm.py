@@ -1,5 +1,5 @@
 from sqlalchemy import MetaData, Table, Column, String, DateTime, func, ForeignKey, Integer, Boolean, Enum, \
-    UniqueConstraint, LargeBinary
+    UniqueConstraint, LargeBinary, BigInteger
 from sqlalchemy.orm import registry, relationship
 
 from app.bot.enums import Origin
@@ -25,7 +25,7 @@ delayed_messages = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String(100), primary_key=True),
     Column("origin", Enum(Origin), nullable=False),
-    Column("chat_id", Integer, nullable=False),
+    Column("chat_id", BigInteger, nullable=False),
     Column("delay", Integer, nullable=False),
     Column("data", LargeBinary, nullable=False),
     Column("created_at", DateTime(), default=func.now(tz='UTC')),
@@ -85,8 +85,8 @@ players = Table(
     _metadata,
     Column("id", Integer, primary_key=True),
     Column("origin", Enum(Origin), nullable=False),
-    Column("chat_id", Integer, nullable=False),
-    Column("user_id", Integer, nullable=False),
+    Column("chat_id", BigInteger, nullable=False),
+    Column("user_id", BigInteger, nullable=False),
     Column("points", Integer, nullable=False),
     Column("in_game", Boolean, default=True),
     Column("is_current", Boolean, default=False),
@@ -101,7 +101,7 @@ games = Table(
     "games",
     _metadata,
     Column("id", Integer, primary_key=True),
-    Column("chat_id", Integer, nullable=False),
+    Column("chat_id", BigInteger, nullable=False),
     Column("origin", Enum(Origin), nullable=False),
     Column("state", Enum(GameState), nullable=False),
     Column("created_at", DateTime(timezone=True), default=func.now(tz='UTC')),
@@ -140,13 +140,14 @@ def setup_mappers() -> MetaData:
             lazy="joined",
             cascade="all, delete-orphan",
             innerjoin=True
+
         ),
         "media_files": relationship(
             MediaFile,
             lazy="joined",
             back_populates="question",
             cascade="all, delete-orphan",
-            innerjoin=True
+
         ),
         "theme": relationship(
             Theme,
@@ -168,7 +169,7 @@ def setup_mappers() -> MetaData:
             foreign_keys="Player.game_id",
             back_populates="players",
             lazy="joined",
-            innerjoin=True
+
         )
     })
     mapper_registry.map_imperatively(Game, games, properties={
@@ -178,18 +179,18 @@ def setup_mappers() -> MetaData:
             back_populates="game",
             lazy="joined",
             cascade="all, delete-orphan",
-            innerjoin=True
+
         ),
         "themes": relationship(
             Theme,
             secondary=game_themes,
             lazy="joined",
-            innerjoin=True
+
         ),
         "current_question": relationship(
             Question,
             lazy="joined",
-            innerjoin=True
+
         )
     })
     return mapper_registry.metadata
