@@ -98,7 +98,8 @@ class Player:
         self.user_id = user_id
         self.points = 0
         self.in_game: bool = True
-        self.is_current: bool = True
+        self.is_current: bool = False
+        self.is_leading: bool = False
 
         self.game: Game | None = None
 

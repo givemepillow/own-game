@@ -1,8 +1,8 @@
-"""init
+"""migration v2
 
-Revision ID: 7792db506fde
+Revision ID: 4a7e6b199a5e
 Revises: 
-Create Date: 2023-02-28 03:06:15.746040
+Create Date: 2023-02-28 17:35:43.233324
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '7792db506fde'
+revision = '4a7e6b199a5e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -36,17 +36,17 @@ def upgrade() -> None:
     )
     op.create_table('themes',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('title', sa.String(), nullable=True),
-    sa.Column('author', sa.String(), nullable=True),
+    sa.Column('title', sa.String(length=100), nullable=True),
+    sa.Column('author', sa.String(length=50), nullable=True),
     sa.Column('is_available', sa.Boolean(), nullable=True),
-    sa.Column('created_at', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-themes')),
     sa.UniqueConstraint('title', name=op.f('uq-themes-title'))
     )
     op.create_table('questions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cost', sa.Integer(), nullable=False),
-    sa.Column('question', sa.String(), nullable=False),
+    sa.Column('question', sa.String(length=200), nullable=False),
     sa.Column('theme_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-questions-theme_id-themes')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-questions')),
@@ -54,7 +54,7 @@ def upgrade() -> None:
     )
     op.create_table('answers',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('answer', sa.String(), nullable=False),
+    sa.Column('answer', sa.String(length=50), nullable=False),
     sa.Column('question_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['questions.id'], name=op.f('fk-answers-question_id-questions')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-answers'))
@@ -93,6 +93,7 @@ def upgrade() -> None:
     sa.Column('points', sa.Integer(), nullable=False),
     sa.Column('in_game', sa.Boolean(), nullable=True),
     sa.Column('is_current', sa.Boolean(), nullable=True),
+    sa.Column('is_leading', sa.Boolean(), nullable=True),
     sa.Column('game_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['game_id'], ['games.id'], name=op.f('fk-players-game_id-games'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-players')),

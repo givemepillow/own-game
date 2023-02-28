@@ -22,12 +22,12 @@ _metadata = MetaData(naming_convention=_convention)
 delayed_messages = Table(
     "delayed_messages",
     _metadata,
-    Column("id", Integer(), primary_key=True),
+    Column("id", Integer, primary_key=True),
     Column("name", String(100), primary_key=True),
     Column("origin", Enum(Origin), nullable=False),
-    Column("chat_id", Integer(), nullable=False),
-    Column("delay", Integer(), nullable=False),
-    Column("data", LargeBinary(), nullable=False),
+    Column("chat_id", Integer, nullable=False),
+    Column("delay", Integer, nullable=False),
+    Column("data", LargeBinary, nullable=False),
     Column("created_at", DateTime(), default=func.now(tz='UTC')),
 )
 
@@ -42,11 +42,11 @@ admins = Table(
 themes = Table(
     "themes",
     _metadata,
-    Column("id", Integer(), primary_key=True),
-    Column("title", String(), unique=True),
-    Column("author", String()),
+    Column("id", Integer, primary_key=True),
+    Column("title", String(100), unique=True),
+    Column("author", String(50)),
     Column("is_available", Boolean(), default=True),
-    Column("created_at", String(), default=func.now(tz='UTC'))
+    Column("created_at", DateTime(), default=func.now(tz='UTC'))
 )
 
 media_files = Table(
@@ -62,11 +62,11 @@ media_files = Table(
 questions = Table(
     "questions",
     _metadata,
-    Column("id", Integer(), primary_key=True),
-    Column("cost", Integer(), nullable=False),
-    Column("question", String(), nullable=False),
+    Column("id", Integer, primary_key=True),
+    Column("cost", Integer, nullable=False),
+    Column("question", String(200), nullable=False),
 
-    Column("theme_id", Integer(), ForeignKey("themes.id"), nullable=False),
+    Column("theme_id", Integer, ForeignKey("themes.id"), nullable=False),
 
     UniqueConstraint("cost", "theme_id")
 )
@@ -74,24 +74,25 @@ questions = Table(
 answers = Table(
     "answers",
     _metadata,
-    Column("id", Integer(), primary_key=True),
-    Column("answer", String(), nullable=False),
+    Column("id", Integer, primary_key=True),
+    Column("answer", String(50), nullable=False),
 
-    Column("question_id", Integer(), ForeignKey("questions.id"), nullable=False),
+    Column("question_id", Integer, ForeignKey("questions.id"), nullable=False),
 )
 
 players = Table(
     "players",
     _metadata,
-    Column("id", Integer(), primary_key=True),
+    Column("id", Integer, primary_key=True),
     Column("origin", Enum(Origin), nullable=False),
-    Column("chat_id", Integer(), nullable=False),
-    Column("user_id", Integer(), nullable=False),
-    Column("points", Integer(), nullable=False),
-    Column("in_game", Boolean(), default=True),
-    Column("is_current", Boolean(), default=False),
+    Column("chat_id", Integer, nullable=False),
+    Column("user_id", Integer, nullable=False),
+    Column("points", Integer, nullable=False),
+    Column("in_game", Boolean, default=True),
+    Column("is_current", Boolean, default=False),
+    Column("is_leading", Boolean, default=False),
 
-    Column("game_id", Integer(), ForeignKey("games.id", ondelete='CASCADE'), nullable=False),
+    Column("game_id", Integer, ForeignKey("games.id", ondelete='CASCADE'), nullable=False),
 
     UniqueConstraint("user_id", "origin", "chat_id")
 )
@@ -99,13 +100,13 @@ players = Table(
 games = Table(
     "games",
     _metadata,
-    Column("id", Integer(), primary_key=True),
-    Column("chat_id", Integer(), nullable=False),
+    Column("id", Integer, primary_key=True),
+    Column("chat_id", Integer, nullable=False),
     Column("origin", Enum(Origin), nullable=False),
     Column("state", Enum(GameState), nullable=False),
     Column("created_at", DateTime(timezone=True), default=func.now(tz='UTC')),
 
-    Column("current_question_id", Integer(), ForeignKey("questions.id")),
+    Column("current_question_id", Integer, ForeignKey("questions.id")),
 
     UniqueConstraint("chat_id", "origin")
 )
