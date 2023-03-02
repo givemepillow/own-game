@@ -5,7 +5,7 @@ class GameState(StrEnum):
     """
     Состояния игры.
     """
-    WAITING_FOR_LEADING: str = auto()  # # Ожидание ведущего (кто имя станет).
+    WAITING_FOR_LEADING: str = auto()  # # Ожидание ведущего (кто им станет).
     REGISTRATION: str = auto()  # Регистрация на игру.
     QUESTION_SELECTION: str = auto()  # Выбор вопроса.
     WAITING_FOR_PRESS: str = auto()  # Ожидание нажатия на кнопку для ответа на вопрос.
