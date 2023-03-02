@@ -7,6 +7,8 @@ from app.utils.logger import setup_logging
 from app.web.middlewares import setup_middlewares
 from app.store import setup_store
 from app.web.routes import setup_web_routes
+from app.bot.routes import setup_bot_routes
+from app.game import setup_handlers
 
 from app.web.application import Application
 
@@ -20,5 +22,7 @@ def app_factory() -> Application:
     setup_aiohttp_apispec(app, title="Own game", swagger_path="/api/docs")
     setup_store(app)
     setup_bot(app)
+    setup_handlers(app)
     setup_web_routes(app)
+    setup_bot_routes(app)
     return app
