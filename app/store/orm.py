@@ -1,10 +1,12 @@
 from sqlalchemy import MetaData, Table, Column, String, DateTime, func, ForeignKey, Integer, Boolean, Enum, \
     UniqueConstraint, LargeBinary, BigInteger
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import registry, relationship
 
 from app.bot.enums import Origin
 from app.game.enums import GameState
-from app.game.models import Game, Answer, Player, MediaFile, Question, Theme, DelayedMessage
+from app.game.models import Game, Player, MediaFile, Question, Theme, DelayedMessage
 
 _convention = {
     'all_column_names': lambda constraint, table: '.'.join([
@@ -65,19 +67,11 @@ questions = Table(
     Column("id", Integer, primary_key=True),
     Column("cost", Integer, nullable=False),
     Column("question", String(200), nullable=False),
+    Column("answer", String(90), nullable=False),
 
     Column("theme_id", Integer, ForeignKey("themes.id"), nullable=False),
 
     UniqueConstraint("cost", "theme_id")
-)
-
-answers = Table(
-    "answers",
-    _metadata,
-    Column("id", Integer, primary_key=True),
-    Column("answer", String(50), nullable=False),
-
-    Column("question_id", Integer, ForeignKey("questions.id"), nullable=False),
 )
 
 players = Table(
@@ -85,16 +79,17 @@ players = Table(
     _metadata,
     Column("id", Integer, primary_key=True),
     Column("origin", Enum(Origin), nullable=False),
-    Column("chat_id", BigInteger, nullable=False),
     Column("user_id", BigInteger, nullable=False),
     Column("points", Integer, nullable=False),
     Column("in_game", Boolean, default=True),
     Column("is_current", Boolean, default=False),
     Column("is_leading", Boolean, default=False),
+    Column("is_answering", Boolean, default=False),
+    Column("already_answered", Boolean, default=False),
 
     Column("game_id", Integer, ForeignKey("games.id", ondelete='CASCADE'), nullable=False),
 
-    UniqueConstraint("user_id", "origin", "chat_id")
+    UniqueConstraint("user_id", "origin", "game_id")
 )
 
 games = Table(
@@ -104,6 +99,7 @@ games = Table(
     Column("chat_id", BigInteger, nullable=False),
     Column("origin", Enum(Origin), nullable=False),
     Column("state", Enum(GameState), nullable=False),
+    Column("selected_questions", MutableList.as_mutable(ARRAY(Integer()))),
     Column("created_at", DateTime(timezone=True), default=func.now(tz='UTC')),
 
     Column("current_question_id", Integer, ForeignKey("questions.id")),
@@ -115,7 +111,7 @@ game_themes = Table(
     "game_themes",
     _metadata,
     Column("theme_id", ForeignKey("themes.id"), nullable=False),
-    Column("game_id", ForeignKey("games.id"), nullable=False),
+    Column("game_id", ForeignKey("games.id", ondelete="CASCADE"), nullable=False),
 
     UniqueConstraint("theme_id", "game_id")
 )
@@ -135,13 +131,6 @@ def setup_mappers() -> MetaData:
         )
     })
     mapper_registry.map_imperatively(Question, questions, properties={
-        "answers": relationship(
-            Answer,
-            lazy="joined",
-            cascade="all, delete-orphan",
-            innerjoin=True
-
-        ),
         "media_files": relationship(
             MediaFile,
             lazy="joined",
@@ -152,7 +141,7 @@ def setup_mappers() -> MetaData:
         "theme": relationship(
             Theme,
             lazy="noload",
-            back_populates="questions"
+            back_populates="questions",
         )
     })
     mapper_registry.map_imperatively(MediaFile, media_files, properties={
@@ -162,13 +151,12 @@ def setup_mappers() -> MetaData:
             back_populates="media_files",
         )
     })
-    mapper_registry.map_imperatively(Answer, answers)
     mapper_registry.map_imperatively(Player, players, properties={
         "game": relationship(
             Game,
             foreign_keys="Player.game_id",
             back_populates="players",
-            lazy="joined",
+            lazy="subquery",
 
         )
     })
@@ -189,8 +177,7 @@ def setup_mappers() -> MetaData:
         ),
         "current_question": relationship(
             Question,
-            lazy="joined",
-
+            lazy="subquery"
         )
     })
     return mapper_registry.metadata

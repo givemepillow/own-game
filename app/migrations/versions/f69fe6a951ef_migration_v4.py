@@ -1,16 +1,16 @@
-"""migration v3
+"""migration v4
 
-Revision ID: b029c0ffae8f
+Revision ID: f69fe6a951ef
 Revises: 
-Create Date: 2023-02-28 22:37:50.227311
+Create Date: 2023-03-02 04:31:14.725258
 
 """
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'b029c0ffae8f'
+revision = 'f69fe6a951ef'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -47,23 +47,18 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cost', sa.Integer(), nullable=False),
     sa.Column('question', sa.String(length=200), nullable=False),
+    sa.Column('answer', sa.String(length=90), nullable=False),
     sa.Column('theme_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-questions-theme_id-themes')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-questions')),
     sa.UniqueConstraint('cost', 'theme_id', name=op.f('uq-questions-cost.theme_id'))
     )
-    op.create_table('answers',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('answer', sa.String(length=50), nullable=False),
-    sa.Column('question_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['question_id'], ['questions.id'], name=op.f('fk-answers-question_id-questions')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk-answers'))
-    )
     op.create_table('games',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
-    sa.Column('state', sa.Enum('REGISTRATION', 'SELECTION', 'QUESTION', 'ANSWER', name='gamestate'), nullable=False),
+    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CHECKING', name='gamestate'), nullable=False),
+    sa.Column('selected_questions', postgresql.ARRAY(sa.Integer()), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('current_question_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['current_question_id'], ['questions.id'], name=op.f('fk-games-current_question_id-questions')),
@@ -81,23 +76,24 @@ def upgrade() -> None:
     op.create_table('game_themes',
     sa.Column('theme_id', sa.Integer(), nullable=False),
     sa.Column('game_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['game_id'], ['games.id'], name=op.f('fk-game_themes-game_id-games')),
+    sa.ForeignKeyConstraint(['game_id'], ['games.id'], name=op.f('fk-game_themes-game_id-games'), ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-game_themes-theme_id-themes')),
     sa.UniqueConstraint('theme_id', 'game_id', name=op.f('uq-game_themes-theme_id.game_id'))
     )
     op.create_table('players',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
-    sa.Column('chat_id', sa.BigInteger(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('points', sa.Integer(), nullable=False),
     sa.Column('in_game', sa.Boolean(), nullable=True),
     sa.Column('is_current', sa.Boolean(), nullable=True),
     sa.Column('is_leading', sa.Boolean(), nullable=True),
+    sa.Column('is_answering', sa.Boolean(), nullable=True),
+    sa.Column('already_answered', sa.Boolean(), nullable=True),
     sa.Column('game_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['game_id'], ['games.id'], name=op.f('fk-players-game_id-games'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-players')),
-    sa.UniqueConstraint('user_id', 'origin', 'chat_id', name=op.f('uq-players-user_id.origin.chat_id'))
+    sa.UniqueConstraint('user_id', 'origin', 'game_id', name=op.f('uq-players-user_id.origin.game_id'))
     )
     # ### end Alembic commands ###
 
@@ -108,7 +104,6 @@ def downgrade() -> None:
     op.drop_table('game_themes')
     op.drop_table('media_files')
     op.drop_table('games')
-    op.drop_table('answers')
     op.drop_table('questions')
     op.drop_table('themes')
     op.drop_table('delayed_messages')

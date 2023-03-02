@@ -11,12 +11,12 @@ class NewQuestionSchema(Schema):
     id = fields.Int(required=False)
     question = fields.Str(required=True)
     complexity = fields.Enum(QuestionComplexity)
-    answers = fields.List(fields.Nested(NewAnswerSchema(), required=True))
+    answer = fields.Str(required=True)
 
-    @validates("answers")
-    def validate_answers(self, answers: list[dict]):
-        if len(answers) < 1:
-            raise ValidationError("number of answers must be more than zero")
+    @validates("answer")
+    def validate_answer(self, answers: list[dict]):
+        if not (90 > len(answers) > 1):
+            raise ValidationError("answer length should be between 1 and 90")
 
 
 class NewThemeSchema(Schema):

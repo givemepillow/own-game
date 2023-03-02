@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from sqlalchemy import select, and_, delete
+from sqlalchemy import select, and_, delete, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.enums import Origin
@@ -31,7 +31,7 @@ class GameRepository(AbstractRepository):
     def add(self, game: Game):
         self.session.add(game)
 
-    async def get(self, chat_id: int, origin: Origin) -> Game | None:
+    async def get(self, origin: Origin, chat_id: int) -> Game | None:
         return (await self.session.execute(
             select(Game).
             where(and_(
@@ -42,13 +42,14 @@ class GameRepository(AbstractRepository):
     async def list(self) -> list[object]:
         return list((await self.session.execute(select(Game))).scalars())
 
-    async def delete(self, chat_id: int, origin: Origin):
-        await self.session.execute(
+    async def delete(self, origin: Origin, chat_id: int):
+        result = (await self.session.execute(
             delete(Game).where(
                 orm.games.c.origin == origin,
                 orm.games.c.chat_id == chat_id
             )
-        )
+        ))
+        return result.rowcount  # noqa
 
 
 class ThemeRepository(AbstractRepository):
@@ -60,17 +61,16 @@ class ThemeRepository(AbstractRepository):
         return (await self.session.execute(select(Theme))).scalar()
 
     async def list(self) -> list[object]:
-        return list((await self.session.execute(select(Theme))).scalars())
+        return list((await self.session.execute(select(Theme))).unique().scalars())
 
 
 class PlayerRepository(AbstractRepository):
     def add(self, player: Player):
         self.session.add(player)
 
-    async def get(self, origin: Origin, chat_id: int, user_id: int) -> object:
-        return (await self.session.query(select(Player).filter(
+    async def get(self, origin: Origin, user_id: int) -> Player:
+        return (await self.session.execute(select(Player).filter(
             (orm.players.c.origin == origin) &
-            (orm.players.c.chat_id == chat_id) &
             (orm.players.c.user_id == user_id)
         ))).scalar()
 
