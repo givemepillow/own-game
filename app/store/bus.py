@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import Future
 from typing import Type
 
 from app.abc.cleanup_ctx import CleanupCTX
@@ -65,6 +66,7 @@ class MessageBus(CleanupCTX):
             self.app.bus.publish(message)
 
         task = asyncio.create_task(_postpone_task())
+        task.add_done_callback(self._done_callback)
         self._delayed_messages[self._hash(message.__class__, origin, chat_id)] = task
 
     async def cancel(self, message_class: Type[Message], origin: Origin, chat_id: int):
@@ -82,3 +84,7 @@ class MessageBus(CleanupCTX):
     @staticmethod
     def _hash(message_type: Type[Message], origin: Origin, chat_id: int):
         return hash((message_type, origin, chat_id))
+
+    def _done_callback(self, future: Future):
+        if future.exception():
+            self.logger.exception('running failed', exc_info=future.exception())
