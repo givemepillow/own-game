@@ -17,7 +17,7 @@ class VkBot(AbstractBot):
         if not user_id:
             raise ValueError(f"Not enough params! ({user_id=})")
 
-        await self._api.get_user(user_id)
+        return await self._api.get_user(user_id)
 
     async def send(
             self,

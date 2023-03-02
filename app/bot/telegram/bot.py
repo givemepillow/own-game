@@ -88,7 +88,7 @@ class TelegramBot(AbstractBot):
         if callback_query_id is None:
             raise ValueError(f"Not enough params! ({callback_query_id=})")
 
-        await self._api.answer_callback_query(int(callback_query_id), text)
+        await self._api.answer_callback_query(callback_query_id, text)
 
     async def get_user(self, chat_id: int | None = None, user_id: int | None = None) -> BotUser:
         if self._update is not None:

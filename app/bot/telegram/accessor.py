@@ -90,7 +90,7 @@ class TelegramAPIAccessor(CleanupCTX):
             case data:
                 self.logger.debug('edit_reply_markup ' + json.dumps(data, indent=2))
 
-    async def answer_callback_query(self, callback_query_id: int, text: str = ''):
+    async def answer_callback_query(self, callback_query_id: str, text: str = ''):
         response = await self._session.get(self._url("answerCallbackQuery"), params={
             "callback_query_id": callback_query_id,
             "text": text,
