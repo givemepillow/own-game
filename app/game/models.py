@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
@@ -47,15 +48,16 @@ class Theme(Base):
     __tablename__ = "themes"
 
     id: Mapped[int] = mapped_column(primary_key=True, compare=True)
-    title: Mapped[str] = mapped_column(sa.String(50), nullable=False)
+    title: Mapped[str] = mapped_column(sa.String(50), nullable=False, unique=True)
     author: Mapped[str] = mapped_column(sa.String(50), nullable=False)
-    is_available: Mapped[bool] = mapped_column(nullable=False)
+    is_available: Mapped[bool] = mapped_column(nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=sa.func.now(tz='UTC'))
 
     questions: Mapped[list[Question]] = relationship(
         back_populates="theme",
         cascade="all, delete-orphan",
-
+        lazy='joined',
+        innerjoin=True
     )
 
     @classmethod
@@ -76,27 +78,23 @@ class Player(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     origin: Mapped[Origin] = mapped_column(sa.Enum(Origin), nullable=False, compare=True)
     user_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
+    chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
 
     points: Mapped[int] = mapped_column(nullable=False, default=0)
 
-    is_current: Mapped[bool] = mapped_column(nullable=False, default=False)
-    is_answering: Mapped[bool] = mapped_column(nullable=False, default=False)
     already_answered: Mapped[bool] = mapped_column(nullable=False, default=False)
-    is_leading: Mapped[bool] = mapped_column(nullable=False, default=False)
 
-    game_id: Mapped[int] = mapped_column(sa.ForeignKey("games.id"))
-    game: Mapped[Game] = relationship(back_populates="players")
+    game_id: Mapped[int] = mapped_column(sa.ForeignKey("games.id", ondelete="CASCADE"), nullable=False)
+    game: Mapped[Game] = relationship(back_populates="players", lazy='noload')
 
-    __table_args__ = (
-        sa.UniqueConstraint("origin", "user_id"),
-    )
+    __table_args__ = (sa.UniqueConstraint("origin", "user_id", "chat_id"),)
 
 
 game_themes = sa.Table(
     "game_themes",
     Base.metadata,
     sa.Column("theme_id", sa.ForeignKey("themes.id"), primary_key=True),
-    sa.Column("game_id", sa.ForeignKey("games.id"), primary_key=True)
+    sa.Column("game_id", sa.ForeignKey("games.id"), primary_key=True),
 )
 
 
@@ -106,25 +104,23 @@ class Game(Base):
     """
     __tablename__ = "games"
 
-    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, compare=True)
     origin: Mapped[Origin] = mapped_column(sa.Enum(Origin), nullable=False, compare=True)
     chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
     state: Mapped[GameState] = mapped_column(sa.Enum(GameState), nullable=False)
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=sa.func.now(tz='UTC'))
+    selected_questions: Mapped[set[int]] = mapped_column(MutableList.as_mutable(ARRAY(sa.Integer)), default=[])
 
-    is_current: Mapped[bool] = mapped_column(nullable=False, default=False)
-    is_answering: Mapped[bool] = mapped_column(nullable=False, default=False)
-    already_answered: Mapped[bool] = mapped_column(nullable=False, default=False)
-    is_leading: Mapped[bool] = mapped_column(nullable=False, default=False)
+    leading_user_id: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
+    current_user_id: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
+    answering_user_id: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
 
-    selected_question: Mapped[set[int]] = mapped_column(MutableList.as_mutable(ARRAY(sa.Integer)))
+    current_question_id: Mapped[Optional[Player]] = mapped_column(sa.ForeignKey("questions.id"), nullable=True)
+    current_question: Mapped[Optional[Question]] = relationship(lazy="joined")
 
-    current_question_id: Mapped[int] = mapped_column(sa.ForeignKey("questions.id"))
-    current_question: Mapped[Question] = relationship(lazy="joined")
-
-    players: Mapped[list[Player]] = relationship(back_populates="game", lazy="joined", )
-    themes: Mapped[list[Theme]] = relationship(secondary=game_themes)
-
-    __table_args__ = (
-        sa.UniqueConstraint("origin", "chat_id"),
+    players: Mapped[list[Player]] = relationship(
+        back_populates="game", cascade="all, delete-orphan", lazy='joined', innerjoin=False,
     )
+    themes: Mapped[list[Theme]] = relationship(secondary=game_themes, lazy="joined", innerjoin=False)
+
+    __table_args__ = (sa.UniqueConstraint("origin", "chat_id"),)

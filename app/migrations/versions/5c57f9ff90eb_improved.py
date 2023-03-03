@@ -1,8 +1,8 @@
-"""refactoring migration
+"""улучшенная модель
 
-Revision ID: c1e78cb37cef
+Revision ID: 5c57f9ff90eb
 Revises: 
-Create Date: 2023-03-02 15:13:11.878132
+Create Date: 2023-03-03 03:24:20.619460
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'c1e78cb37cef'
+revision = '5c57f9ff90eb'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -31,7 +31,8 @@ def upgrade() -> None:
     sa.Column('author', sa.String(length=50), nullable=False),
     sa.Column('is_available', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk-themes'))
+    sa.PrimaryKeyConstraint('id', name=op.f('pk-themes')),
+    sa.UniqueConstraint('title', name=op.f('uq-themes-title'))
     )
     op.create_table('questions',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -47,14 +48,13 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
-    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CHECKING', name='game_state'), nullable=False),
+    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CHECKING', name='gamestate'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('is_current', sa.Boolean(), nullable=False),
-    sa.Column('is_answering', sa.Boolean(), nullable=False),
-    sa.Column('already_answered', sa.Boolean(), nullable=False),
-    sa.Column('is_leading', sa.Boolean(), nullable=False),
-    sa.Column('selected_question', postgresql.ARRAY(sa.Integer()), nullable=False),
-    sa.Column('current_question_id', sa.Integer(), nullable=False),
+    sa.Column('selected_questions', postgresql.ARRAY(sa.Integer()), nullable=False),
+    sa.Column('leading_user_id', sa.BigInteger(), nullable=True),
+    sa.Column('current_user_id', sa.BigInteger(), nullable=True),
+    sa.Column('answering_user_id', sa.BigInteger(), nullable=True),
+    sa.Column('current_question_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['current_question_id'], ['questions.id'], name=op.f('fk-games-current_question_id-questions')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-games')),
     sa.UniqueConstraint('origin', 'chat_id', name=op.f('uq-games-origin.chat_id'))
@@ -70,15 +70,13 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
+    sa.Column('chat_id', sa.BigInteger(), nullable=False),
     sa.Column('points', sa.Integer(), nullable=False),
-    sa.Column('is_current', sa.Boolean(), nullable=False),
-    sa.Column('is_answering', sa.Boolean(), nullable=False),
     sa.Column('already_answered', sa.Boolean(), nullable=False),
-    sa.Column('is_leading', sa.Boolean(), nullable=False),
     sa.Column('game_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['game_id'], ['games.id'], name=op.f('fk-players-game_id-games')),
+    sa.ForeignKeyConstraint(['game_id'], ['games.id'], name=op.f('fk-players-game_id-games'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-players')),
-    sa.UniqueConstraint('origin', 'user_id', name=op.f('uq-players-origin.user_id'))
+    sa.UniqueConstraint('origin', 'user_id', 'chat_id', name=op.f('uq-players-origin.user_id.chat_id'))
     )
     # ### end Alembic commands ###
 
@@ -91,6 +89,6 @@ def downgrade() -> None:
     op.drop_table('questions')
     op.drop_table('themes')
     op.drop_table('admins')
-    op.execute('drop type game_state')
     op.execute('drop type origin')
+    op.execute('drop type gamestate')
     # ### end Alembic commands ###
