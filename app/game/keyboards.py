@@ -13,11 +13,11 @@ class CallbackType(StrEnum):
     PEEK: str = auto()
     ACCEPT: str = auto()
     REJECT: str = auto()
+    BECOME_LEADING: str = auto()
 
 
 def make_registration(current_players_number: int = 0) -> InlineKeyboard:
     keyboard = InlineKeyboard()
-    keyboard.add(InlineButton(f"Игроков зарегистрировано: {current_players_number}"))
     keyboard.add(
         InlineButton("Играю", CallbackData(CallbackType.JOIN)),
         InlineButton("Не играю", CallbackData(CallbackType.CANCEL_JOIN))
@@ -42,6 +42,19 @@ def make_table(themes: list[Theme], already_selected: list[int]):
     return keyboard
 
 
+def make_row(theme: Theme, already_selected: list[int]):
+    keyboard = InlineKeyboard()
+    keyboard.add(*(
+        InlineButton(str(q.cost), CallbackData(
+            CallbackType.SELECT_QUESTION,
+            f"{q.id}"
+        ))
+        if q.id not in already_selected else InlineButton()
+        for q in theme.questions
+    ))
+    return keyboard
+
+
 def make_answer_button():
     keyboard = InlineKeyboard()
     keyboard.add(InlineButton("Ответить", CallbackData(CallbackType.PRESS_ANSWER)))
@@ -55,4 +68,10 @@ def make_checker():
         InlineButton("Принять", CallbackData(CallbackType.ACCEPT)),
         InlineButton("Отклонить", CallbackData(CallbackType.REJECT))
     )
+    return keyboard
+
+
+def make_become_leading():
+    keyboard = InlineKeyboard()
+    keyboard.add(InlineButton("Я буду ведущим.", CallbackData(CallbackType.BECOME_LEADING)))
     return keyboard

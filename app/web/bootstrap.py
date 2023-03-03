@@ -8,7 +8,7 @@ from app.web.middlewares import setup_middlewares
 from app.store import setup_store
 from app.web.routes import setup_web_routes
 from app.bot.routes import setup_bot_routes
-from app.game import setup_handlers
+from app.game.handlers import setup_handlers
 
 from app.web.application import Application
 

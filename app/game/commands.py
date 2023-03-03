@@ -58,3 +58,13 @@ class AcceptAnswer(Command):
 @dataclass(frozen=True, slots=True)
 class RejectAnswer(Command):
     update: BotCallbackQuery
+
+
+@dataclass(frozen=True, slots=True)
+class StartRegistration(Command):
+    update: BotCallbackQuery
+
+
+@dataclass(frozen=True, slots=True)
+class SetLeading(Command):
+    update: BotCallbackQuery

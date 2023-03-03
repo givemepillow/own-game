@@ -23,6 +23,12 @@ class FinishBotCommand(BotView):
         self.app.bus.publish(commands.Finish(update))
 
 
+@callback_query(data_type=CallbackType.BECOME_LEADING)
+class BecomeLeading(BotView):
+    async def handle(self, update: BotCallbackQuery):
+        self.app.bus.publish(commands.SetLeading(update))
+
+
 @callback_query(data_type=CallbackType.JOIN)
 class GameRegistration(BotView):
     async def handle(self, update: BotCallbackQuery):
@@ -89,5 +95,6 @@ VIEWS = [
     PlayerAnswer,
     PeekAnswer,
     AcceptAnswer,
-    RejectAnswer
+    RejectAnswer,
+    BecomeLeading
 ]
