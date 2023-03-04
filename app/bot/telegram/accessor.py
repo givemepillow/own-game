@@ -4,7 +4,8 @@ from functools import cache
 from typing import Iterable
 
 import orjson as orjson
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientConnectorError
+from aiolimiter import AsyncLimiter
 
 from app.bot.updates import BotUpdate
 from app.bot.inline import InlineKeyboard
@@ -28,6 +29,7 @@ class TelegramAPIAccessor(CleanupCTX):
         self._timeout = 30  # seconds
         self._limit = 50
         self._offset = 0
+        self._limiter = AsyncLimiter(19)
 
     @property
     def bot_id(self):
@@ -44,8 +46,13 @@ class TelegramAPIAccessor(CleanupCTX):
         await self._session.close()
 
     async def poll(self):
-        for update in self._pack(await self.get_updates()):
-            await self.app.bot.dispatcher.handle(update)
+        while True:
+            try:
+                for update in self._pack(await self.get_updates()):
+                    await self.app.bot.dispatcher.handle(update)
+            except (TimeoutError, ClientConnectorError, ConnectionRefusedError) as e:
+                self.logger.warning(str(e), exc_info=e)
+                await asyncio.sleep(5)
 
     async def get_updates(self) -> list[dict]:
         response = await self._session.get(self._url("getUpdates"), params=self._params)
@@ -81,24 +88,27 @@ class TelegramAPIAccessor(CleanupCTX):
             message_id: int,
             inline_keyboard: InlineKeyboard | None = None
     ):
-        response = await self._session.get(self._url("editMessageReplyMarkup"), params={
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "reply_markup": self._inline_keyboard_markup(inline_keyboard)
-        })
-        match await response.json(loads=orjson.loads):
-            case data:
-                self.logger.debug('edit_reply_markup ' + json.dumps(data, indent=2))
+        async with self._limiter:
+            response = await self._session.get(self._url("editMessageReplyMarkup"), params={
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "reply_markup": self._inline_keyboard_markup(inline_keyboard)
+            })
+            match await response.json(loads=orjson.loads):
+                case data:
+                    self.logger.debug('edit_reply_markup ' + json.dumps(data, indent=2))
 
     async def answer_callback_query(self, callback_query_id: str, text: str = ''):
-        response = await self._session.get(self._url("answerCallbackQuery"), params={
-            "callback_query_id": callback_query_id,
-            "text": text,
-            "show_alert": int(not bool(text))
-        })
-        match await response.json(loads=orjson.loads):
-            case data:
-                self.logger.debug('send_alert ' + json.dumps(data, indent=2))
+        async with self._limiter:
+            response = await self._session.get(self._url("answerCallbackQuery"), params={
+                "callback_query_id": callback_query_id,
+                "text": text,
+                "show_alert": int(not bool(text)),
+                "cache_time": 1
+            })
+            match await response.json(loads=orjson.loads):
+                case data:
+                    self.logger.debug('send_alert ' + json.dumps(data, indent=2))
 
     async def send_message(
             self,
@@ -106,11 +116,12 @@ class TelegramAPIAccessor(CleanupCTX):
             text: str,
             inline_keyboard: InlineKeyboard | None = None
     ) -> int | None:
-        response = await self._session.get(url=self._url("sendMessage"), params=dict(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=self._inline_keyboard_markup(inline_keyboard)
-        ))
+        async with self._limiter:
+            response = await self._session.get(url=self._url("sendMessage"), params=dict(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=self._inline_keyboard_markup(inline_keyboard)
+            ))
         match await response.json(loads=orjson.loads):
             case {"ok": False, "error_code": 429, "parameters": {
                 "retry_after": retry_after
@@ -127,11 +138,12 @@ class TelegramAPIAccessor(CleanupCTX):
 
     async def send_photo(self, chat_id: int, photo_path: str, text: str = ''):
         with open(photo_path, mode='rb') as photo_file:
-            response = await self._session.post(
-                self._url("sendPhoto"),
-                params={"chat_id": chat_id, "caption": text, "reply_markup": ''},
-                data={'photo': photo_file}
-            )
+            async with self._limiter:
+                response = await self._session.post(
+                    self._url("sendPhoto"),
+                    params={"chat_id": chat_id, "caption": text, "reply_markup": ''},
+                    data={'photo': photo_file}
+                )
         match await response.json(loads=orjson.loads):
             case data:
                 self.logger.debug('send_photo ' + json.dumps(data, indent=2))
@@ -144,15 +156,15 @@ class TelegramAPIAccessor(CleanupCTX):
             inline_keyboard: InlineKeyboard | None = None,
             remove_inline_keyboard: bool = False
     ):
-        print(inline_keyboard)
-        response = await self._session.get(self._url("editMessageText"), params=dict(
-            chat_id=chat_id,
-            message_id=message_id,
-            text=text,
-            **dict(
-                reply_markup=self._inline_keyboard_markup(inline_keyboard)
-            ) if inline_keyboard and not remove_inline_keyboard else {}
-        ))
+        async with self._limiter:
+            response = await self._session.get(self._url("editMessageText"), params=dict(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                **dict(
+                    reply_markup=self._inline_keyboard_markup(inline_keyboard)
+                ) if inline_keyboard and not remove_inline_keyboard else {}
+            ))
         match await response.json(content_type=response.content_type, loads=orjson.loads):
             case data:
                 self.logger.debug('edit_message_text ' + json.dumps(data, indent=2))

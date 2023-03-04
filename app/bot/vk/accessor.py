@@ -1,9 +1,10 @@
+import asyncio
 import json
 from random import randint
 from typing import Iterable
 from functools import cache
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientConnectorError
 from orjson import orjson
 
 from app.abc.cleanup_ctx import CleanupCTX
@@ -50,8 +51,13 @@ class VkAPIAccessor(CleanupCTX):
         await self._session.close()
 
     async def poll(self):
-        for update in self._pack(await self.get_updates()):
-            await self.app.bot.dispatcher.handle(update)
+        while True:
+            try:
+                for update in self._pack(await self.get_updates()):
+                    await self.app.bot.dispatcher.handle(update)
+            except (TimeoutError, ClientConnectorError, ConnectionRefusedError) as e:
+                self.logger.warning(str(e), exc_info=e)
+                await asyncio.sleep(5)
 
     async def get_updates(self) -> list[dict]:
         async with self._session.get(url=self._server, params=self._get_updates_params) as response:
