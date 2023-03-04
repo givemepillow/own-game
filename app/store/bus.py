@@ -41,7 +41,8 @@ class MessageBus(CleanupCTX):
     async def handle(self):
         message = await self._queue.get()
         for handler in self._handlers.get(type(message), []):
-            await handler(message)
+            task = asyncio.create_task(handler(message))
+            task.add_done_callback(self._done_callback)
         self._queue.task_done()
 
     def publish(self, message: Message):
