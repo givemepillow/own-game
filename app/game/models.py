@@ -36,6 +36,18 @@ class Question(Base):
         sa.UniqueConstraint("theme_id", "cost"),
     )
 
+    def __le__(self, other: Question):
+        return self.cost <= other.cost
+
+    def __lt__(self, other: Question):
+        return self.cost < other.cost
+
+    def __ge__(self, other: Question):
+        return self.cost >= other.cost
+
+    def __gt__(self, other: Question):
+        return self.cost < other.cost
+
     @classmethod
     def from_dict(cls, question: str, complexity: QuestionComplexity, answer: str, **_):
         return cls(
@@ -159,14 +171,11 @@ class Game(Base):
     def answer(self) -> NoReturn:
         self.state: GameState = GameState.WAITING_FOR_CHECKING
 
-    def accept(self) -> Player:
-        player = self.get_answering_player()
+    def accept(self, player: Player) -> Player:
 
         self.answering_user_id: int | None = None
         self.current_user_id = player.user_id
         player.points += self.current_question.cost
-
-        return player
 
     def start_selection(self):
         for p in self.players:
@@ -174,15 +183,12 @@ class Game(Base):
 
         self.state: GameState = GameState.QUESTION_SELECTION
 
-    def reject(self) -> Player:
-        player = self.get_answering_player()
+    def reject(self, player: Player) -> Player:
 
         self.answering_user_id: int | None = None
 
         player.already_answered = True
         player.points -= self.current_question.cost
-
-        return player
 
     def is_all_answered(self):
         for p in self.players:

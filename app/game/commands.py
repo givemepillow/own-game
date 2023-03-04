@@ -10,7 +10,7 @@ class Play(Command):
 
 
 @dataclass(frozen=True, slots=True)
-class Finish(Command):
+class CancelGame(Command):
     update: BotUpdate
 
 
@@ -36,7 +36,7 @@ class SelectQuestion(Command):
 
 
 @dataclass(frozen=True, slots=True)
-class PressAnswerButton(Command):
+class PressButton(Command):
     update: BotCallbackQuery
 
 
@@ -68,3 +68,25 @@ class StartRegistration(Command):
 @dataclass(frozen=True, slots=True)
 class SetLeading(Command):
     update: BotCallbackQuery
+
+
+@dataclass(frozen=True, slots=True)
+class ShowRating(Command):
+    update: BotUpdate
+
+
+@dataclass(frozen=True, slots=True)
+class VkRenderQuestions(Command):
+    text: str
+    update: BotUpdate
+
+
+@dataclass(frozen=True, slots=True)
+class TelegramRenderQuestions(Command):
+    text: str
+    update: BotUpdate
+
+
+@dataclass(frozen=True, slots=True)
+class NextQuestion(Command):
+    update: BotUpdate
