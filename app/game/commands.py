@@ -86,7 +86,3 @@ class TelegramRenderQuestions(Command):
     text: str
     update: BotUpdate
 
-
-@dataclass(frozen=True, slots=True)
-class NextQuestion(Command):
-    update: BotUpdate

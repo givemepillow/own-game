@@ -22,11 +22,7 @@ class GameCreator(Handler):
                 uow.games.add(game)
                 await uow.commit()
         except IntegrityError as e:
-            if e.code == 'gkpj':
-                # await self.app.bot(msg.update).send("Игра уже начата!")
-                pass
-            else:
-                raise
+            raise
         else:
             await self.app.bot(msg.update).send("Нам нужен ведущий.", kb.make_become_leading())
 
@@ -39,7 +35,7 @@ class GameLeading(Handler):
             if not game or game.state != GameState.WAITING_FOR_LEADING or game.leading_user_id is not None:
                 return
 
-            game.leading_user_id = msg.update.user_id
+            game.set_leading(msg.update.user_id)
 
             await self.app.bot(msg.update).callback("Вы теперь ведущий.")
             user = await self.app.bot(msg.update).get_user()
@@ -74,7 +70,6 @@ class GameDestroyer(Handler):
                 return
 
             if game.leading_user_id != msg.update.user_id:
-                # await self.app.bot(msg.update).send("Только ведущий может завершить игру!")
                 return
 
             game.finish()
@@ -91,8 +86,7 @@ class GameJoin(Handler):
 
                 game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-                if not game or game.leading_user_id == msg.update.user_id:
-                    # await self.app.bot(msg.update).callback("Ведущий в регистрации не участвует!")
+                if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
                     return
 
                 game.register(
@@ -102,7 +96,6 @@ class GameJoin(Handler):
 
         except IntegrityError as e:
             if e.code == 'gkpj':
-                # await self.app.bot(msg.update).callback("Вы уже зарегистрированы!")
                 pass
             else:
                 raise
@@ -120,13 +113,11 @@ class GameCancelJoin(Handler):
             player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
 
             if player is None:
-                # await self.app.bot(msg.update).callback("Вы и так вне игры!")
                 return
 
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.leading_user_id == msg.update.user_id:
-                # await self.app.bot(msg.update).callback("Ведущий в регистрации не участвует!")
+            if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
                 return
 
             game.unregister(player)
@@ -144,8 +135,7 @@ class GameStarter(Handler):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.leading_user_id != msg.update.user_id:
-                # await self.app.bot(msg.update).callback("Только ведущий может досрочно начать игру!")
+            if not game or game.state != GameState.REGISTRATION or game.leading_user_id != msg.update.user_id:
                 return
 
             themes = await uow.themes.list()
@@ -202,12 +192,14 @@ class PressButton(Handler):
                 return
 
             game.press(player)
+            await bot.edit(remove_inline_keyboard=True)
+            user = await bot.get_user()
+            await bot.edit(
+                f"{game.current_question.question}\n\n{user.mention}, вы всех опередили! Отвечайте.",
+                remove_inline_keyboard=True
+            )
 
             await uow.commit()
-
-        await bot.edit(remove_inline_keyboard=True)
-        user = await bot.get_user()
-        await bot.send(f"{user.mention}, вы всех опередили! Отвечайте.")
 
 
 class Answer(Handler):
@@ -223,9 +215,9 @@ class Answer(Handler):
 
             game.answer()
 
-            await uow.commit()
+            await self.app.bot(msg.update).send("Что скажет ведущий?", kb.make_checker())
 
-        await self.app.bot(msg.update).send("Что скажет ведущий?", kb.make_checker())
+            await uow.commit()
 
 
 class PeekAnswer(Handler):
@@ -236,10 +228,8 @@ class PeekAnswer(Handler):
             if not game or game.state != GameState.WAITING_FOR_CHECKING or game.leading_user_id != msg.update.user_id:
                 return
 
-            # if game.leading_user_id != msg.update.user_id:
-            #     return await self.app.bot(msg.update).callback()
-
             await self.app.bot(msg.update).callback(f"{game.current_question.answer}")
+
             await uow.commit()
 
 
@@ -250,9 +240,6 @@ class AcceptAnswer(Handler):
 
             if not game or game.state != GameState.WAITING_FOR_CHECKING or game.leading_user_id != msg.update.user_id:
                 return
-
-            # if game.leading_user_id != msg.update.user_id:
-            #     return await self.app.bot(msg.update).callback()
 
             player = game.get_answering_player()
 
@@ -299,7 +286,7 @@ class RejectAnswer(Handler):
                     remove_inline_keyboard=True
                 )
                 await self.app.bus.postpone(
-                    events.QuestionFinished(msg.update), msg.update.origin, msg.update.chat_id, delay=2
+                    events.QuestionFinished(msg.update), msg.update.origin, msg.update.chat_id, delay=3
                 )
             else:
                 await self.app.bot(msg.update).edit(
@@ -308,50 +295,49 @@ class RejectAnswer(Handler):
                     f"Кто-нибудь хочет ответить?",
                     inline_keyboard=kb.make_answer_button()
                 )
+
             await uow.commit()
 
 
 class NextSelection(Handler):
-    async def handler(self, msg: commands.NextQuestion):
+    async def handler(self, msg: events.QuestionFinished):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.WAITING_FOR_CHECKING:
+            if not game:
                 return
-
-            game.start_selection()
-
-            user = await self.app.bot(msg.update).get_user(game.chat_id, game.current_user_id)
-
-            text = f"{user.mention}, выбирайте вопрос: "
-            if msg.update.origin == Origin.TELEGRAM:
-                self.app.bus.publish(commands.TelegramRenderQuestions(text=text, update=msg.update))
-            else:
-                self.app.bus.publish(commands.VkRenderQuestions(text=text, update=msg.update))
-
-            await uow.commit()
-
-
-class RatingPrinter(Handler):
-    async def handler(self, msg: commands.ShowRating):
-        async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
             if len(game.selected_questions) == 5:
                 self.app.bus.publish(events.GameFinished(msg.update))
                 return
 
             rows = ["Рейтинг на данный момент:\n"]
-            for p in sorted(game.players, reverse=True):
+            for p in sorted(game.players, reverse=True, key=lambda player: player.points):
                 user = await self.app.bot(msg.update).get_user(user_id=p.user_id)
                 rows.append(f"{user.mention}: {p.points} очков")
 
-            await self.app.bus.postpone(
-                commands.NextQuestion(msg.update), msg.update.origin, msg.update.chat_id,
-                delay=2
-            )
+            game.start_selection()
 
             await self.app.bot(msg.update).edit('\n'.join(rows), remove_inline_keyboard=True)
+
+            user = await self.app.bot(msg.update).get_user(game.chat_id, game.current_user_id)
+            text = f"{user.mention}, выбирайте вопрос: "
+            if msg.update.origin == Origin.TELEGRAM:
+                await self.app.bus.postpone(
+                    commands.TelegramRenderQuestions(text=text, update=msg.update),
+                    msg.update.origin,
+                    msg.update.chat_id,
+                    delay=3
+                )
+            else:
+                await self.app.bus.postpone(
+                    commands.VkRenderQuestions(text=text, update=msg.update),
+                    msg.update.origin,
+                    msg.update.chat_id,
+                    delay=3
+                )
+
+            await uow.commit()
 
 
 class Results(Handler):
@@ -362,16 +348,17 @@ class Results(Handler):
             if not game:
                 return
 
-            players = sorted(game.players, reverse=True)
+            players = sorted(game.players, reverse=True, key=lambda player: player.points)
             winner = await self.app.bot(msg.update).get_user(user_id=players[0].user_id)
             rows = [f"ИГРА ЗАВЕРШЕНА!\nПОЗДРАВЛЯЕМ ПОБЕДИТЕЛЯ: {winner.mention}!\n"]
-            for p in sorted(game.players, reverse=True):
+            for p in sorted(game.players, reverse=True, key=lambda player: player.points):
                 user = await self.app.bot(msg.update).get_user(user_id=p.user_id)
                 rows.append(f"{user.mention}: {p.points} очков")
 
             game.finish()
             await uow.games.delete(msg.update.origin, msg.update.chat_id)
             await self.app.bot(msg.update).edit('\n'.join(rows), remove_inline_keyboard=True)
+
             await uow.commit()
 
 
@@ -380,7 +367,7 @@ class TelegramQuestionSelector(Handler):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.QUESTION_SELECTION:
+            if not game:
                 return
 
             await self.app.bot(msg.update).edit(
@@ -394,7 +381,7 @@ class VkQuestionSelector(Handler):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.QUESTION_SELECTION:
+            if not game:
                 return
 
             await self.app.bot(msg.update).edit(msg.text, remove_inline_keyboard=True)
@@ -422,11 +409,10 @@ def setup_handlers(app: Application):
         commands.PeekAnswer: [PeekAnswer],
         commands.RejectAnswer: [RejectAnswer],
         commands.AcceptAnswer: [AcceptAnswer],
-        commands.NextQuestion: [NextSelection],
         commands.VkRenderQuestions: [VkQuestionSelector],
         commands.TelegramRenderQuestions: [TelegramQuestionSelector],
 
-        events.QuestionFinished: [RatingPrinter],
+        events.QuestionFinished: [NextSelection],
         events.GameFinished: [Results],
 
     })
