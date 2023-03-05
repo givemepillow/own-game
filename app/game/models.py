@@ -138,6 +138,10 @@ class Game(Base):
 
     __table_args__ = (sa.UniqueConstraint("origin", "chat_id"),)
 
+    def set_leading(self, user_id: int):
+        self.state: GameState = GameState.REGISTRATION
+        self.leading_user_id: int = user_id
+
     def register(self, player: Player):
         self.players.append(player)
 
@@ -149,42 +153,41 @@ class Game(Base):
             return False
 
     def start(self, themes: list[Theme]) -> Player:
+        self.state: GameState = GameState.QUESTION_SELECTION
         self.themes.extend(choices(themes, k=1))
         player = choice(self.players)
         self.current_user_id = player.user_id
-        self.state: GameState = GameState.QUESTION_SELECTION
         return player
 
     def select(self, question_id: int) -> Optional[Question]:
+        self.state: GameState = GameState.WAITING_FOR_PRESS
         for t in self.themes:
             for q in t.questions:
                 if q.id == question_id:
                     self.selected_questions.append(q.id)
                     self.current_question = q
-                    self.state: GameState = GameState.WAITING_FOR_PRESS
                     return q
 
     def press(self, player: Player) -> NoReturn:
-        self.answering_user_id = player.user_id
         self.state: GameState = GameState.WAITING_FOR_ANSWER
+        self.answering_user_id = player.user_id
 
     def answer(self) -> NoReturn:
         self.state: GameState = GameState.WAITING_FOR_CHECKING
 
-    def accept(self, player: Player) -> Player:
+    def accept(self, player: Player) -> NoReturn:
 
         self.answering_user_id: int | None = None
         self.current_user_id = player.user_id
         player.points += self.current_question.cost
 
-    def start_selection(self):
+    def start_selection(self) -> NoReturn:
+        self.state: GameState = GameState.QUESTION_SELECTION
         for p in self.players:
             p.already_answered = False
 
-        self.state: GameState = GameState.QUESTION_SELECTION
-
-    def reject(self, player: Player) -> Player:
-
+    def reject(self, player: Player):
+        self.state: GameState = GameState.WAITING_FOR_PRESS
         self.answering_user_id: int | None = None
 
         player.already_answered = True
