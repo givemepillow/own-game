@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from random import choice, choices
 from typing import Optional, NoReturn
 
@@ -203,3 +203,20 @@ class Game(Base):
 
     def finish(self):
         self.themes.clear()
+
+
+class DelayedMessage(Base):
+    __tablename__ = "delayed_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    origin: Mapped[Origin] = mapped_column(sa.Enum(Origin), nullable=False)
+    delay: Mapped[int] = mapped_column(nullable=False)
+    chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False)
+    data: Mapped[bytes] = mapped_column(sa.LargeBinary(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=sa.func.now(tz='UTC'))
+
+    @property
+    def seconds_remaining(self):
+        _delay = self.delay - (datetime.now(tz=timezone.utc).second - self.created_at.second)
+        return _delay if _delay > 1 else 0

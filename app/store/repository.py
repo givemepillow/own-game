@@ -4,7 +4,7 @@ from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.enums import Origin
-from app.game.models import Game, Theme, Player
+from app.game.models import Game, Theme, Player, DelayedMessage
 
 
 class AbstractRepository(ABC):
@@ -78,3 +78,13 @@ class PlayerRepository(AbstractRepository):
     def list(self) -> list[object]:
         pass
 
+
+class DelayedMessageRepository(AbstractRepository):
+    def add(self, delayed_message: DelayedMessage):
+        self.session.add(delayed_message)
+
+    async def get(self, origin: Origin, chat_id: int, user_id: int) -> DelayedMessage:
+        pass
+
+    async def list(self) -> list[DelayedMessage]:
+        return list((await self.session.execute(select(DelayedMessage))).scalars())
