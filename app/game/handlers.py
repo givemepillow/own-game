@@ -63,9 +63,7 @@ class GameRegistration(Handler):
 class GameDestroyer(Handler):
     async def handler(self, msg: commands.CancelGame):
         async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
-
-            if game is None:
+            if not (game := await uow.games.get(msg.update.origin, msg.update.chat_id)):
                 await self.app.bot(msg.update).send("Игры и так нет!")
                 return
 
@@ -90,8 +88,10 @@ class GameJoin(Handler):
                     return
 
                 game.register(
-                    Player(origin=msg.update.origin, user_id=msg.update.user_id, chat_id=msg.update.chat_id))
+                    Player(origin=msg.update.origin, user_id=msg.update.user_id, chat_id=msg.update.chat_id)
+                )
                 players_number = len(game.players)
+
                 await uow.commit()
 
         except IntegrityError as e:
@@ -156,18 +156,15 @@ class QuestionSelector(Handler):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.QUESTION_SELECTION:
+            if not game or game.state != GameState.QUESTION_SELECTION or game.current_user_id != msg.update.user_id:
                 return
 
             if len(game.selected_questions) == 5:
                 self.app.bus.publish(commands.CancelGame(msg.update))
                 return
 
-            if game.current_user_id != msg.update.user_id:
-                await self.app.bot(msg.update).callback("Не мешайте играть!!!")
-                return
-
             question = game.select(msg.question_id)
+
             await self.app.bot(msg.update).edit(question.question, inline_keyboard=kb.make_answer_button())
             await uow.commit()
 
@@ -178,12 +175,7 @@ class PressButton(Handler):
         async with self.app.store.db() as uow:
             player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
 
-            if player is None:
-                await self.app.bot(msg.update).callback("Не мешайте играть!")
-                return
-
-            if player.already_answered:
-                await self.app.bot(msg.update).callback("Вы уже отвечали!")
+            if player is None or player.already_answered:
                 return
 
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -192,7 +184,7 @@ class PressButton(Handler):
                 return
 
             game.press(player)
-            await bot.edit(remove_inline_keyboard=True)
+
             user = await bot.get_user()
             await bot.edit(
                 f"{game.current_question.question}\n\n{user.mention}, вы всех опередили! Отвечайте.",
@@ -207,10 +199,7 @@ class Answer(Handler):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.WAITING_FOR_ANSWER:
-                return
-
-            if game.answering_user_id != msg.update.user_id:
+            if not game or game.state != GameState.WAITING_FOR_ANSWER or game.answering_user_id != msg.update.user_id:
                 return
 
             game.answer()
@@ -241,9 +230,7 @@ class AcceptAnswer(Handler):
             if not game or game.state != GameState.WAITING_FOR_CHECKING or game.leading_user_id != msg.update.user_id:
                 return
 
-            player = game.get_answering_player()
-
-            if not player:
+            if not (player := game.get_answering_player()):
                 return
 
             game.accept(player)
@@ -270,9 +257,7 @@ class RejectAnswer(Handler):
             if not game or game.state != GameState.WAITING_FOR_CHECKING or game.leading_user_id != msg.update.user_id:
                 return
 
-            player = game.get_answering_player()
-
-            if not player:
+            if not (player := game.get_answering_player()):
                 return
 
             game.reject(player)
@@ -302,9 +287,8 @@ class RejectAnswer(Handler):
 class NextSelection(Handler):
     async def handler(self, msg: events.QuestionFinished):
         async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game:
+            if not (game := await uow.games.get(msg.update.origin, msg.update.chat_id)):
                 return
 
             if len(game.selected_questions) == 5:
@@ -343,15 +327,14 @@ class NextSelection(Handler):
 class Results(Handler):
     async def handler(self, msg: events.QuestionFinished):
         async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game:
+            if not (game := await uow.games.get(msg.update.origin, msg.update.chat_id)):
                 return
 
             players = sorted(game.players, reverse=True, key=lambda player: player.points)
             winner = await self.app.bot(msg.update).get_user(user_id=players[0].user_id)
             rows = [f"ИГРА ЗАВЕРШЕНА!\nПОЗДРАВЛЯЕМ ПОБЕДИТЕЛЯ: {winner.mention}!\n"]
-            for p in sorted(game.players, reverse=True, key=lambda player: player.points):
+            for p in players:
                 user = await self.app.bot(msg.update).get_user(user_id=p.user_id)
                 rows.append(f"{user.mention}: {p.points} очков")
 
@@ -365,9 +348,7 @@ class Results(Handler):
 class TelegramQuestionSelector(Handler):
     async def handler(self, msg: commands.TelegramRenderQuestions):
         async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
-
-            if not game:
+            if not (game := await uow.games.get(msg.update.origin, msg.update.chat_id)):
                 return
 
             await self.app.bot(msg.update).edit(
@@ -379,9 +360,7 @@ class TelegramQuestionSelector(Handler):
 class VkQuestionSelector(Handler):
     async def handler(self, msg: commands.VkRenderQuestions):
         async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
-
-            if not game:
+            if not (game := await uow.games.get(msg.update.origin, msg.update.chat_id)):
                 return
 
             await self.app.bot(msg.update).edit(msg.text, remove_inline_keyboard=True)
