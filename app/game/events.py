@@ -15,11 +15,6 @@ class GameFinished(Event):
 
 
 @dataclass(slots=True)
-class GameTimeout(Event):
-    update: BotUpdate
-
-
-@dataclass(slots=True)
 class WaitingForLeadingTimeout(Event):
     update: BotUpdate
     message_id: int
@@ -42,10 +37,11 @@ class WaitingPressTimeout(Event):
 
 
 @dataclass(slots=True)
-class WaitingAnswerTimeout(Event):
-    update: BotUpdate
+class WaitingForAnswerTimeout(Event):
+    update: BotCallbackQuery
 
 
 @dataclass(slots=True)
 class WaitingForCheckingTimeout(Event):
-    update: BotCallbackQuery
+    update: BotUpdate
+    message_id: int

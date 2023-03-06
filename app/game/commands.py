@@ -42,7 +42,7 @@ class PressButton(Command):
 
 @dataclass(slots=True)
 class Answer(Command):
-    update: BotMessage
+    update: BotCallbackQuery
 
 
 @dataclass(slots=True)
@@ -75,10 +75,10 @@ class ShowRating(Command):
     update: BotUpdate
 
 
-@dataclass(slots=True)
-class ShowPress(Command):
-    update: BotCallbackQuery
-    text: str
+# @dataclass(slots=True)
+# class ShowPress(Command):
+#     update: BotCallbackQuery
+#     text: str
 
 
 @dataclass(slots=True)
@@ -90,7 +90,7 @@ class VkRenderQuestions(Command):
 @dataclass(slots=True)
 class TelegramRenderQuestions(Command):
     text: str
-    update: BotUpdate
+    update: BotCallbackQuery
 
 
 @dataclass(slots=True)
