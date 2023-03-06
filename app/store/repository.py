@@ -88,3 +88,13 @@ class DelayedMessageRepository(AbstractRepository):
 
     async def list(self) -> list[DelayedMessage]:
         return list((await self.session.execute(select(DelayedMessage))).scalars())
+
+    async def delete(self, name: str, origin: Origin, chat_id: int):
+        return await self.session.execute(
+            delete(DelayedMessage).
+            where(
+                (DelayedMessage.origin == origin) &
+                (DelayedMessage.chat_id == chat_id) &
+                (DelayedMessage.name == name)
+            )
+        )
