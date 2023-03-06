@@ -26,7 +26,7 @@ class TelegramAPIAccessor(CleanupCTX):
         self._bot_username: str | None = None
         self._bot_id: int | None = None
         self._bot_token = self.app.config.telegram.token
-        self._timeout = 30  # seconds
+        self._timeout = 25  # seconds
         self._limit = 50
         self._offset = 0
         self._limiter = AsyncLimiter(19)

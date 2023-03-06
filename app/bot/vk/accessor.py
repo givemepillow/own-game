@@ -27,7 +27,7 @@ class VkAPIAccessor(CleanupCTX):
         self._ts: int = 1
         self._v = "5.131"
         self._act = "a_check"
-        self._wait = 30  # seconds
+        self._wait = 25  # seconds
         self._access_token = self.app.config.vk.token
         self._group_id = self.app.config.vk.group_id
 
