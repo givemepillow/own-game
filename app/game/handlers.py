@@ -1,3 +1,4 @@
+from enum import IntEnum
 from random import choice
 
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +11,16 @@ from app.game.enums import GameState
 from app.game.models import Game, Player
 from app.game import keyboards as kb
 from app.web.application import Application
+
+
+class Delay(IntEnum):
+    WAIT_LEADING = 15
+    REGISTRATION = 30
+    WAIT_SELECTION = 20
+    WAIT_PRESS = 25
+    WAIT_ANSWER = 15
+    WAIT_CHECKING = 25
+    PAUSE = 7
 
 
 class GameCreator(Handler):
@@ -27,11 +38,14 @@ class GameCreator(Handler):
         except IntegrityError:
             pass
         else:
-            message_id = await self.app.bot(msg.update).send("Нам нужен ведущий.", kb.make_become_leading())
+            message_id = await self.app.bot(msg.update).send(
+                f"Нам нужен ведущий. ({Delay.WAIT_LEADING} сек.)",
+                kb.make_become_leading()
+            )
             await self.app.bus.postpone_publish(
                 events.WaitingForLeadingTimeout(msg.update, message_id),
                 msg.update.origin, msg.update.chat_id,
-                delay=15
+                delay=Delay.WAIT_LEADING
             )
 
 
@@ -43,8 +57,9 @@ class GameLeading(Handler):
             if not game or game.state != GameState.WAITING_FOR_LEADING or game.leading_user_id is not None:
                 return
 
-            game.set_leading(msg.update.user_id)
             await self.app.bus.cancel(events.WaitingForLeadingTimeout, msg.update.origin, msg.update.chat_id)
+
+            game.set_leading(msg.update.user_id)
 
             await self.app.bot(msg.update).callback("Вы теперь ведущий.")
             user = await self.app.bot(msg.update).get_user()
@@ -52,25 +67,26 @@ class GameLeading(Handler):
                 f"Ведущий нашёлся - {user.mention}.",
                 remove_inline_keyboard=True
             )
-            await uow.commit()
 
-        await self.app.bus.postpone_publish(
-            commands.StartRegistration(msg.update),
-            msg.update.origin, msg.update.chat_id,
-            delay=5
-        )
+            await self.app.bus.postpone_publish(
+                commands.StartRegistration(msg.update),
+                msg.update.origin, msg.update.chat_id,
+                delay=Delay.PAUSE
+            )
+
+            await uow.commit()
 
 
 class GameRegistration(Handler):
     async def handler(self, msg: commands.StartRegistration):
         await self.app.bot(msg.update).edit(
-            f"Регистрация. Игроков зарегистрировано: 0",
+            f"Регистрация. Игроков зарегистрировано: 0.\n({Delay.REGISTRATION} сек.)",
             inline_keyboard=kb.make_registration()
         )
         await self.app.bus.postpone_publish(
             events.RegistrationTimeout(msg.update, msg.update.message_id),
             msg.update.origin, msg.update.chat_id,
-            delay=30
+            delay=Delay.REGISTRATION
         )
 
 
@@ -84,9 +100,17 @@ class GameDestroyer(Handler):
             if game.leading_user_id != msg.update.user_id:
                 return
 
+            if game.state not in (GameState.REGISTRATION, GameState.WAITING_FOR_LEADING):
+                players = sorted(game.players, reverse=True, key=lambda player: player.points)
+                rows = [f"ИГРА ДОСРОЧНО ЗАВЕРШЕНА!\n", "РЕЙТИНГ ИГРОВОЙ СЕССИИ:\n"]
+                for p in players:
+                    rows.append(f"{p.name}: {p.points} очков")
+                await self.app.bot(msg.update).send('\n'.join(rows))
+            else:
+                await self.app.bot(msg.update).send("ИГРА ДОСРОЧНО ЗАВЕРШЕНА!")
+
             game.finish()
             await uow.games.delete(msg.update.origin, msg.update.chat_id)
-            await self.app.bot(msg.update).send("Игра досрочно завершена!")
 
             await uow.commit()
 
@@ -102,21 +126,27 @@ class GameJoin(Handler):
                     return
 
                 game.register(
-                    Player(origin=msg.update.origin, user_id=msg.update.user_id, chat_id=msg.update.chat_id)
+                    Player(
+                        origin=msg.update.origin,
+                        user_id=msg.update.user_id,
+                        chat_id=msg.update.chat_id,
+                        name=(await self.app.bot(msg.update).get_user()).mention
+                    )
                 )
-                players_number = len(game.players)
+                rows = [f"Регистрация. Игроков зарегистрировано: {len(game.players)}."]
+                for i, player in enumerate(game.players, start=1):
+                    rows.append(f"{i}. {player.name}")
+                await self.app.bot(msg.update).edit(
+                    '\n'.join(rows) + f"\n({Delay.REGISTRATION} сек.)",
+                    inline_keyboard=kb.make_registration(len(game.players))
+                )
+                await self.app.bot(msg.update).callback("Вы зарегистрировались в игре!")
 
                 await uow.commit()
 
         except IntegrityError as e:
             if e.code == 'gkpj':
                 pass
-        else:
-            await self.app.bot(msg.update).edit(
-                f"Регистрация. Игроков зарегистрировано: {players_number}",
-                inline_keyboard=kb.make_registration(players_number)
-            )
-            await self.app.bot(msg.update).callback("Вы зарегистрировались в игре!")
 
 
 class GameCancelJoin(Handler):
@@ -134,11 +164,15 @@ class GameCancelJoin(Handler):
 
             game.unregister(player)
 
+            rows = [f"Регистрация. Игроков зарегистрировано: {len(game.players)}."]
+            for i, player in enumerate(game.players, start=1):
+                rows.append(f"{i}. {player.name}")
             await self.app.bot(msg.update).edit(
-                f"Регистрация. Игроков зарегистрировано: {len(game.players)}",
+                '\n'.join(rows) + f"\n({Delay.REGISTRATION} сек.)",
                 inline_keyboard=kb.make_registration(len(game.players))
             )
             await self.app.bot(msg.update).callback("Вы ОТМЕНИЛИ регистрацию в игре!")
+
             await uow.commit()
 
 
@@ -154,21 +188,15 @@ class GameStarter(Handler):
 
             themes = await uow.themes.list()
             player = game.start(themes)
-            user = await self.app.bot(msg.update).get_user(game.chat_id, player.user_id)
-            await uow.commit()
 
-        text = f"Гадание на кофейной гуще привело к тому, что {user.mention} будет первым выбирать вопрос..."
+            await uow.session.flush()
 
-        if msg.update.origin == Origin.TELEGRAM:
-            self.app.bus.publish(commands.TelegramRenderQuestions(text=text, update=msg.update))
-        else:
-            self.app.bus.publish(commands.VkRenderQuestions(text=text, update=msg.update))
+            text = f"Звёзды сказали, что {player.name} будет первым выбирать вопрос...\n({Delay.WAIT_SELECTION} сек.)"
 
-        await self.app.bus.postpone_publish(
-            events.WaitingSelectionTimeout(msg.update),
-            msg.update.origin, msg.update.chat_id,
-            delay=15
-        )
+            if msg.update.origin == Origin.TELEGRAM:
+                self.app.bus.publish(commands.TelegramRenderQuestions(text=text, update=msg.update))
+            else:
+                self.app.bus.publish(commands.VkRenderQuestions(text=text, update=msg.update))
 
 
 class QuestionSelector(Handler):
@@ -179,24 +207,26 @@ class QuestionSelector(Handler):
             if not game or game.state != GameState.QUESTION_SELECTION or game.current_user_id != msg.update.user_id:
                 return
 
+            await self.app.bus.cancel(events.WaitingSelectionTimeout, msg.update.origin, msg.update.chat_id)
+
             question = game.select(msg.question_id)
 
-            await self.app.bus.cancel(events.WaitingSelectionTimeout, msg.update.origin, msg.update.chat_id)
+            await uow.commit()
 
             if msg.update.origin == Origin.VK:
                 await self.app.bus.cancel(commands.HideQuestionsTimeout, msg.update.origin, msg.update.chat_id)
                 await self.app.bus.force_publish(commands.HideQuestions, msg.update.origin, msg.update.chat_id)
             else:
-                await self.app.bot(msg.update).edit(question.question, inline_keyboard=kb.make_answer_button())
-
+                await self.app.bot(msg.update).edit(
+                    f"Вопрос за {question.cost}:\n{question.question}\n({Delay.WAIT_PRESS} сек.)",
+                    inline_keyboard=kb.make_answer_button()
+                )
                 await self.app.bus.postpone_publish(
                     events.WaitingPressTimeout(msg.update),
                     msg.update.origin,
                     msg.update.chat_id,
-                    delay=15
+                    delay=Delay.WAIT_PRESS
                 )
-
-            await uow.commit()
 
 
 class PressButton(Handler):
@@ -217,16 +247,18 @@ class PressButton(Handler):
 
             game.press(player)
 
-            user = await bot.get_user()
+            await uow.commit()
+
             await bot.edit(
-                f"{game.current_question.question}\n\n{user.mention}, вы всех опередили! Отвечайте.",
+                f"{game.current_question.question}\n\n{player.name}, вы всех опередили! Отвечайте."
+                f"\n({Delay.WAIT_ANSWER} сек.)",
                 remove_inline_keyboard=True
             )
 
             await self.app.bus.postpone_publish(
                 events.WaitingForAnswerTimeout(msg.update),
                 msg.update.origin, msg.update.chat_id,
-                delay=20
+                delay=Delay.WAIT_ANSWER
             )
 
             await uow.commit()
@@ -244,13 +276,16 @@ class Answer(Handler):
 
             game.answer()
 
-            message_id = await self.app.bot(msg.update).send("Что скажет ведущий?", kb.make_checker())
+            message_id = await self.app.bot(msg.update).send(
+                f"Что скажет ведущий?\n({Delay.WAIT_CHECKING} сек.)",
+                kb.make_checker()
+            )
 
             await self.app.bus.postpone_publish(
                 events.WaitingForCheckingTimeout(msg.update, message_id),
                 msg.update.origin,
                 msg.update.chat_id,
-                delay=15
+                delay=Delay.WAIT_CHECKING
             )
 
             await uow.commit()
@@ -284,15 +319,14 @@ class AcceptAnswer(Handler):
 
             game.accept(player)
 
-            user = await self.app.bot(msg.update).get_user(user_id=player.user_id)
             await self.app.bot(msg.update).edit(
-                f"Просто превосходно, {user.mention}! "
+                f"Просто превосходно, {player.name}! "
                 f"Вы получаете {game.current_question.cost} очков!",
                 remove_inline_keyboard=True
             )
 
             await self.app.bus.postpone_publish(
-                events.QuestionFinished(msg.update), msg.update.origin, msg.update.chat_id, delay=3
+                events.QuestionFinished(msg.update), msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
             )
 
             await uow.commit()
@@ -313,29 +347,28 @@ class RejectAnswer(Handler):
 
             game.reject(player)
 
-            user = await self.app.bot(msg.update).get_user(user_id=player.user_id)
             if game.is_all_answered():
                 await self.app.bot(msg.update).edit(
-                    f"{user.mention}, к сожалению, ответ неверный, "
-                    f"вы теряете {game.current_question.cost} очков. "
-                    f"Правильным ответом было: {game.current_question.answer}",
+                    f"{player.name}, к сожалению, ответ неверный, "
+                    f"вы теряете {game.current_question.cost} очков.\n"
+                    f"Правильным ответом было: «{game.current_question.answer}».",
                     remove_inline_keyboard=True
                 )
                 await self.app.bus.postpone_publish(
-                    events.QuestionFinished(msg.update), msg.update.origin, msg.update.chat_id, delay=3
+                    events.QuestionFinished(msg.update), msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
                 )
             else:
                 await self.app.bot(msg.update).edit(
-                    f"{user.mention}, к сожалению, ответ неверный, "
-                    f"вы теряете {game.current_question.cost} очков. "
-                    f"Кто-нибудь хочет ответить?",
+                    f"{player.name}, к сожалению, ответ неверный, "
+                    f"вы теряете {game.current_question.cost} очков.\n"
+                    f"Кто-нибудь хочет ответить?\n({Delay.WAIT_PRESS} сек.)",
                     inline_keyboard=kb.make_answer_button()
                 )
                 await self.app.bus.postpone_publish(
                     events.WaitingPressTimeout(msg.update),
                     msg.update.origin,
                     msg.update.chat_id,
-                    delay=15
+                    delay=Delay.WAIT_PRESS
                 )
 
             await uow.commit()
@@ -354,30 +387,28 @@ class NextSelection(Handler):
 
             await self.app.bus.cancel(events.WaitingForCheckingTimeout, msg.update.origin, msg.update.chat_id)
 
+            current_player = game.start_selection()
+
             rows = ["Рейтинг на данный момент:\n"]
             for p in sorted(game.players, reverse=True, key=lambda player: player.points):
-                user = await self.app.bot(msg.update).get_user(user_id=p.user_id)
-                rows.append(f"{user.mention}: {p.points} очков")
-
-            game.start_selection()
+                rows.append(f"{p.name}: {p.points} очков")
 
             await self.app.bot(msg.update).edit('\n'.join(rows), remove_inline_keyboard=True)
 
-            user = await self.app.bot(msg.update).get_user(game.chat_id, game.current_user_id)
-            text = f"{user.mention}, выбирайте вопрос: "
+            text = f"{current_player.name}, выбирайте вопрос.\n({Delay.WAIT_SELECTION} сек.)"
             if msg.update.origin == Origin.TELEGRAM:
                 await self.app.bus.postpone_publish(
                     commands.TelegramRenderQuestions(text=text, update=msg.update),
                     msg.update.origin,
                     msg.update.chat_id,
-                    delay=5
+                    delay=Delay.PAUSE
                 )
             else:
                 await self.app.bus.postpone_publish(
                     commands.VkRenderQuestions(text=text, update=msg.update),
                     msg.update.origin,
                     msg.update.chat_id,
-                    delay=5
+                    delay=Delay.PAUSE
                 )
 
             await uow.commit()
@@ -391,11 +422,9 @@ class Results(Handler):
                 return
 
             players = sorted(game.players, reverse=True, key=lambda player: player.points)
-            winner = await self.app.bot(msg.update).get_user(user_id=players[0].user_id)
-            rows = [f"ИГРА ЗАВЕРШЕНА!\nПОЗДРАВЛЯЕМ ПОБЕДИТЕЛЯ: {winner.mention}!\n"]
+            rows = [f"ИГРА ЗАВЕРШЕНА!\n\nПОЗДРАВЛЯЕМ ПОБЕДИТЕЛЯ: {players[0].name}!\n\n"]
             for p in players:
-                user = await self.app.bot(msg.update).get_user(user_id=p.user_id)
-                rows.append(f"{user.mention}: {p.points} очков")
+                rows.append(f"{p.name}: {p.points} очков")
 
             game.finish()
             await uow.games.delete(msg.update.origin, msg.update.chat_id)
@@ -418,7 +447,7 @@ class TelegramQuestionSelector(Handler):
             await self.app.bus.postpone_publish(
                 events.WaitingSelectionTimeout(msg.update),
                 msg.update.origin, msg.update.chat_id,
-                delay=20
+                delay=Delay.WAIT_SELECTION
             )
 
 
@@ -438,7 +467,7 @@ class VkQuestionSelector(Handler):
             await self.app.bus.postpone_publish(
                 events.WaitingSelectionTimeout(msg.update),
                 msg.update.origin, msg.update.chat_id,
-                delay=20
+                delay=Delay.WAIT_SELECTION
             )
             await self.app.bus.postpone_publish(
                 commands.HideQuestions(msg.update, message_ids),
@@ -464,7 +493,8 @@ class HideQuestions(Handler):
                 await self.app.bot(msg.update).delete(message_id)
 
             await self.app.bot(msg.update).edit(
-                game.current_question.question,
+                f"Вопрос за {game.current_question.cost}:\n{game.current_question.question}"
+                f"\n({Delay.WAIT_PRESS} сек.)",
                 inline_keyboard=kb.make_answer_button()
             )
 
@@ -472,7 +502,7 @@ class HideQuestions(Handler):
                 events.WaitingPressTimeout(msg.update),
                 msg.update.origin,
                 msg.update.chat_id,
-                delay=15
+                delay=Delay.WAIT_PRESS
             )
 
 
@@ -486,14 +516,16 @@ class HideQuestionsTimeout(Handler):
                 await self.app.bot(msg.update).delete(message_id)
 
             await self.app.bot(msg.update).edit(
-                "Время на выбор вопросы истекло. Вопрос выбран случайно:\n" +
-                game.current_question.question, inline_keyboard=kb.make_answer_button())
+                f"Время на выбор вопросы истекло.\n"
+                f"Вопрос за {game.current_question.cost} выбран случайно:\n{game.current_question.question}"
+                f"\n({Delay.WAIT_PRESS} сек.)", inline_keyboard=kb.make_answer_button()
+            )
 
             await self.app.bus.postpone_publish(
                 events.WaitingPressTimeout(msg.update),
                 msg.update.origin,
                 msg.update.chat_id,
-                delay=15
+                delay=Delay.WAIT_PRESS
             )
 
 
@@ -506,8 +538,7 @@ class CheckingTimeout(Handler):
             players = sorted(game.players, reverse=True, key=lambda player: player.points)
             rows = [f"Кажется ведущий оставил нас...\n\nИГРА ОТМЕНЕНА!\n\nРейтинг игровой сессии:\n"]
             for p in players:
-                user = await self.app.bot(msg.update).get_user(user_id=p.user_id)
-                rows.append(f"{user.mention}: {p.points} очков")
+                rows.append(f"{p.name}: {p.points} очков")
 
             await self.app.bot(msg.update).edit(
                 '\n'.join(rows),
@@ -554,15 +585,16 @@ class SelectionTimeout(Handler):
                 await self.app.bus.cancel(commands.HideQuestions, msg.update.origin, msg.update.chat_id)
             else:
                 await self.app.bot(msg.update).edit(
-                    "Время на выбор вопросы истекло. Вопрос выбран случайно:\n" +
-                    question.question, inline_keyboard=kb.make_answer_button()
+                    f"Время на выбор вопросы истекло. "
+                    f"Вопрос за {question.cost} выбран случайно:\n{question.question}\n({Delay.WAIT_PRESS} сек.)",
+                    inline_keyboard=kb.make_answer_button()
                 )
 
                 await self.app.bus.postpone_publish(
                     events.WaitingPressTimeout(msg.update),
                     msg.update.origin,
                     msg.update.chat_id,
-                    delay=15
+                    delay=Delay.WAIT_PRESS
                 )
 
             await uow.commit()
@@ -577,14 +609,14 @@ class PressTimeout(Handler):
                 return
 
             await self.app.bot(msg.update).edit(
-                f"Никто не соизволил дать ответ...\nПравильным ответом было: '{game.current_question.answer}'",
+                f"Никто не соизволил дать ответ...\nПравильным ответом было: «{game.current_question.answer}».",
                 remove_inline_keyboard=True
             )
             await self.app.bus.postpone_publish(
                 events.QuestionFinished(msg.update),
                 msg.update.origin,
                 msg.update.chat_id,
-                delay=5
+                delay=Delay.PAUSE
             )
 
             await uow.commit()
@@ -603,13 +635,11 @@ class AnswerTimeout(Handler):
 
             game.reject(player)
 
-            user = await self.app.bot(msg.update).get_user(user_id=player.user_id)
-
             if game.is_all_answered():
                 await self.app.bot(msg.update).edit(
-                    f"{user.mention}, ваше время на ответ истекло.\n"
+                    f"{player.name}, ваше время на ответ истекло.\n"
                     f"Вы теряете {game.current_question.cost} очков.\n"
-                    f"Правильным ответом было: {game.current_question.answer}",
+                    f"Правильным ответом было: «{game.current_question.answer}».",
                     remove_inline_keyboard=True
                 )
                 await self.app.bus.postpone_publish(
@@ -617,16 +647,16 @@ class AnswerTimeout(Handler):
                 )
             else:
                 await self.app.bot(msg.update).edit(
-                    f"{user.mention}, ваше время на ответ истекло.\n"
+                    f"{player.name}, ваше время на ответ истекло.\n"
                     f"Вы теряете {game.current_question.cost} очков. "
-                    f"Кто-нибудь хочет ответить?",
+                    f"Кто-нибудь хочет ответить?\n({Delay.WAIT_PRESS} сек.)",
                     inline_keyboard=kb.make_answer_button()
                 )
                 await self.app.bus.postpone_publish(
                     events.WaitingPressTimeout(msg.update),
                     msg.update.origin,
                     msg.update.chat_id,
-                    delay=15
+                    delay=Delay.WAIT_PRESS
                 )
 
             await uow.commit()
