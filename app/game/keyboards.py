@@ -37,7 +37,7 @@ def make_table(themes: list[Theme], already_selected: list[int]):
                 f"{q.id}"
             ))
             if q.id not in already_selected else InlineButton()
-            for q in t.questions
+            for q in sorted(t.questions, reverse=False)
         ))
     return keyboard
 
@@ -50,7 +50,7 @@ def make_vertical(theme: Theme, already_selected: list[int]):
         )) if q.id not in already_selected else InlineButton()
 
     keyboard = InlineKeyboard()
-    questions = sorted(theme.questions)
+    questions = sorted(theme.questions, reverse=False)
     keyboard.add(_question_button(questions[0]), _question_button(questions[1]),  _question_button(questions[2]))
     keyboard.add(_question_button(questions[3]), InlineButton(), _question_button(questions[4]))
     return keyboard

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from random import choice, choices
+from random import choice, sample
 from typing import Optional, NoReturn
 
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -154,7 +154,7 @@ class Game(Base):
 
     def start(self, themes: list[Theme]) -> Player:
         self.state: GameState = GameState.QUESTION_SELECTION
-        self.themes.extend(choices(themes, k=1))
+        self.themes.extend(sample(themes, k=2))
         player = choice(self.players)
         self.current_user_id = player.user_id
         return player
@@ -176,7 +176,6 @@ class Game(Base):
         self.state: GameState = GameState.WAITING_FOR_CHECKING
 
     def accept(self, player: Player) -> NoReturn:
-
         self.answering_user_id: int | None = None
         self.current_user_id = player.user_id
         player.points += self.current_question.cost
@@ -204,6 +203,9 @@ class Game(Base):
             if p.user_id == self.answering_user_id:
                 return p
 
+    def any_questions(self) -> bool:
+        return len(self.selected_questions) < 10
+
     def finish(self):
         self.themes.clear()
 
@@ -221,5 +223,5 @@ class DelayedMessage(Base):
 
     @property
     def seconds_remaining(self):
-        _delay = self.delay - (datetime.now(tz=timezone.utc).second - self.created_at.second)
-        return _delay if _delay > 1 else 0
+        _delay = int(self.delay - (datetime.now(tz=timezone.utc) - self.created_at).total_seconds())
+        return _delay if _delay > 1 else 1
