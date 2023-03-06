@@ -92,6 +92,7 @@ class Player(Base):
     origin: Mapped[Origin] = mapped_column(sa.Enum(Origin), nullable=False, compare=True)
     user_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
     chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
+    name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
 
     points: Mapped[int] = mapped_column(nullable=False, default=0)
 
@@ -180,10 +181,11 @@ class Game(Base):
         self.current_user_id = player.user_id
         player.points += self.current_question.cost
 
-    def start_selection(self) -> NoReturn:
+    def start_selection(self) -> Player:
         self.state: GameState = GameState.QUESTION_SELECTION
         for p in self.players:
             p.already_answered = False
+        return self.get_current_player()
 
     def reject(self, player: Player):
         self.state: GameState = GameState.WAITING_FOR_PRESS
@@ -201,6 +203,11 @@ class Game(Base):
     def get_answering_player(self) -> Player:
         for p in self.players:
             if p.user_id == self.answering_user_id:
+                return p
+
+    def get_current_player(self) -> Player:
+        for p in self.players:
+            if p.user_id == self.current_user_id:
                 return p
 
     def any_questions(self) -> bool:
