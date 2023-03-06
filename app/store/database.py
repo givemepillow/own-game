@@ -2,7 +2,6 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
 
 from app.abc.cleanup_ctx import CleanupCTX
-from app.store.orm import setup_mappers
 from app.store.unit_of_work import UnitOfWork
 
 
@@ -13,8 +12,6 @@ class Database(CleanupCTX):
         self.session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
     async def on_startup(self) -> None:
-        setup_mappers()
-
         self.engine = create_async_engine(
             self.app.config.database.dsn,
             echo=self.app.config.settings.debug
