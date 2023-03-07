@@ -1,4 +1,3 @@
-from enum import IntEnum
 from random import choice
 
 from sqlalchemy.exc import IntegrityError
@@ -7,20 +6,10 @@ from app.abc.handler import Handler
 from app.bot.enums import Origin
 
 from app.game import commands, events, tools
-from app.game.enums import GameState
+from app.game.enums import GameState, Delay
 from app.game.models import Game, Player
 from app.game import keyboards as kb
 from app.web.application import Application
-
-
-class Delay(IntEnum):
-    WAIT_LEADING = 15
-    REGISTRATION = 30
-    WAIT_SELECTION = 20
-    WAIT_PRESS = 25
-    WAIT_ANSWER = 15
-    WAIT_CHECKING = 25
-    PAUSE = 7
 
 
 class GameCreator(Handler):
