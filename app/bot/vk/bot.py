@@ -10,6 +10,10 @@ class VkBot(AbstractBot):
         self._api = api
         self._update = update
 
+    @property
+    def bot_id(self) -> int:
+        return abs(self._api.bot_id)
+
     async def get_user(self, chat_id: int | None = None, user_id: int | None = None) -> BotUser:
         if self._update is not None:
             user_id = user_id or self._update.user_id

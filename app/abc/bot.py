@@ -5,6 +5,12 @@ from app.bot.user import BotUser
 
 
 class AbstractBot(ABC):
+
+    @property
+    @abstractmethod
+    def bot_id(self) -> int:
+        pass
+
     @abstractmethod
     async def send(
             self,

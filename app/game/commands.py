@@ -42,7 +42,7 @@ class PressButton(Command):
 
 @dataclass(slots=True)
 class Answer(Command):
-    update: BotCallbackQuery
+    update: BotUpdate
 
 
 @dataclass(slots=True)

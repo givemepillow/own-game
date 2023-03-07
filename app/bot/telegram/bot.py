@@ -11,6 +11,10 @@ class TelegramBot(AbstractBot):
         self._api = telegram_api
         self._update = update
 
+    @property
+    def bot_id(self) -> int:
+        return abs(self._api.bot_id)
+
     async def send(
             self,
             text: str,
