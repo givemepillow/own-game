@@ -105,6 +105,14 @@ class GameDestroyer(Handler):
 
             await uow.commit()
 
+            if game.state not in (GameState.REGISTRATION, GameState.WAITING_FOR_LEADING):
+                await self.app.bot(msg.update).send(
+                    f"ИГРА ДОСРОЧНО ЗАВЕРШЕНА!\n\n"
+                    f"РЕЙТИНГ ИГРОВОЙ СЕССИИ:\n\n" + tools.players_rating(game.players)
+                )
+            else:
+                await self.app.bot(msg.update).send("ИГРА ДОСРОЧНО ЗАВЕРШЕНА!")
+
 
 class GameJoin(Handler):
     async def handler(self, msg: commands.Join):
@@ -128,7 +136,7 @@ class GameJoin(Handler):
                 await uow.commit()
 
                 await self.app.bot(msg.update).edit(
-                    '\n'.join(rows) + f"\n({Delay.REGISTRATION} сек.)",
+                    tools.players_list(game.players) + f"\n({Delay.REGISTRATION} сек.)",
                     inline_keyboard=kb.make_registration(len(game.players))
                 )
 
@@ -155,7 +163,7 @@ class GameCancelJoin(Handler):
             await uow.commit()
 
             await self.app.bot(msg.update).edit(
-                '\n'.join(rows) + f"\n({Delay.REGISTRATION} сек.)",
+                tools.players_list(game.players) + f"\n({Delay.REGISTRATION} сек.)",
                 inline_keyboard=kb.make_registration(len(game.players))
             )
 
@@ -404,6 +412,12 @@ class Results(Handler):
             await uow.games.delete(msg.update.origin, msg.update.chat_id)
             await uow.commit()
 
+            await self.app.bot(msg.update).edit(
+                f"ИГРА ЗАВЕРШЕНА!\n\nПОЗДРАВЛЯЕМ ПОБЕДИТЕЛЯ: "
+                f"{max(game.players, key=lambda p: p.points).name}!\n\n" + tools.players_rating(game.players),
+                remove_inline_keyboard=True
+            )
+
 
 class TelegramQuestionSelector(Handler):
     async def handler(self, msg: commands.TelegramRenderQuestions):
@@ -512,6 +526,13 @@ class CheckingTimeout(Handler):
             await uow.games.delete(msg.update.origin, msg.update.chat_id)
             await uow.commit()
 
+            await self.app.bot(msg.update).edit(
+                f"Кажется ведущий оставил нас...\n\nИГРА ОТМЕНЕНА!\n\n"
+                f"Рейтинг игровой сессии:\n\n" + tools.players_rating(game.players),
+                remove_inline_keyboard=True,
+                message_id=msg.message_id
+            )
+
 
 class InitGameTimeout(Handler):
     async def handler(self, msg: events.WaitingForLeadingTimeout):
@@ -574,7 +595,7 @@ class PressTimeout(Handler):
             await uow.commit()
 
             await self.app.bot(msg.update).edit(
-                f"Никто не соизволил дать ответ...\nПравильным ответом было: «{game.current_question.answer}».",
+                f"Никто не соизволил дать ответ...\n\nПравильным ответом было: «{game.current_question.answer}».",
                 remove_inline_keyboard=True
             )
             await self.app.bus.postpone_publish(
