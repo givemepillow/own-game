@@ -98,7 +98,7 @@ class TelegramAPIAccessor(CleanupCTX):
         })
         match await response.json(loads=orjson.loads):
             case data:
-                self.logger.debug('send_alert ' + json.dumps(data, indent=2))
+                self.logger.debug('answer_callback_query ' + json.dumps(data, indent=2))
 
     async def send_message(
             self,
@@ -144,14 +144,12 @@ class TelegramAPIAccessor(CleanupCTX):
             inline_keyboard: InlineKeyboard | None = None,
             remove_inline_keyboard: bool = False
     ):
-        print(inline_keyboard)
         response = await self._session.get(self._url("editMessageText"), params=dict(
             chat_id=chat_id,
             message_id=message_id,
             text=text,
-            **dict(
-                reply_markup=self._inline_keyboard_markup(inline_keyboard)
-            ) if inline_keyboard and not remove_inline_keyboard else {}
+            reply_markup=self._inline_keyboard_markup(inline_keyboard)
+            if inline_keyboard and not remove_inline_keyboard else {}
         ))
         match await response.json(content_type=response.content_type, loads=orjson.loads):
             case data:

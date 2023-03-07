@@ -87,7 +87,6 @@ class VkAPIAccessor(CleanupCTX):
                     self.logger.debug('send_message: ' + json.dumps(data, indent=2))
                     return conversation_message_id
                 case error:
-                    print(error)
                     self.logger.error('send_message: ' + json.dumps(error, indent=2))
                     return None
 
@@ -102,10 +101,10 @@ class VkAPIAccessor(CleanupCTX):
                 )
         ) as response:
             match (await response.json(content_type=response.content_type, loads=orjson.loads)):
-                case {"ok": True} as data:
-                    self.logger.debug('send_alert: ' + json.dumps(data, indent=2))
+                case {"response": _} as data:
+                    self.logger.debug('send_event_answer: ' + json.dumps(data, indent=2))
                 case error:
-                    self.logger.error('send_alert: ' + json.dumps(error, indent=2))
+                    self.logger.error('send_event_answer: ' + json.dumps(error, indent=2))
 
     async def edit_message(
             self,
