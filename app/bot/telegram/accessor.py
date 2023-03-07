@@ -104,7 +104,7 @@ class TelegramAPIAccessor(CleanupCTX):
                 "callback_query_id": callback_query_id,
                 "text": text,
                 "show_alert": int(not bool(text)),
-                "cache_time": 1
+                "cache_time": 5
             })
             match await response.json(loads=orjson.loads):
                 case data:
