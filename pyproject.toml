@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "own-game"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Kirill Lapushinskiy <kirill@lapushinskiy.ru>"]
 readme = "README.md"

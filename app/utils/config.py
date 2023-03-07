@@ -43,17 +43,32 @@ class DatabaseConfig:
 
 
 @dataclass
+class VkConfig:
+    token: str
+    group_id: int
+
+
+@dataclass
+class TelegramConfig:
+    token: str
+
+
+@dataclass
 class Config:
     session: SessionConfig
     database: DatabaseConfig
     admin: AdminConfig
     settings: SettingsConfig
+    telegram: TelegramConfig
+    vk: VkConfig
 
     @classmethod
     def load(cls):
         with open(os.environ.get('CONFIG_PATH') or "config.yml", "r") as f:
             raw_config = yaml.safe_load(f)
         return cls(
+            telegram=TelegramConfig(**raw_config["telegram"]),
+            vk=VkConfig(**raw_config["vk"]),
             settings=SettingsConfig(**raw_config["settings"]),
             session=SessionConfig(**raw_config["session"]),
             database=DatabaseConfig(**raw_config["database"]),

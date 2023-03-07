@@ -1,5 +1,6 @@
 from aiohttp_apispec import setup_aiohttp_apispec
 
+from app.bot import setup_bot
 from app.utils.config import setup_config
 from app.utils.logger import setup_logging
 from app.web.middlewares import setup_middlewares
@@ -18,4 +19,5 @@ def app_factory() -> Application:
         app, title="Own game", url="/docs/json", swagger_path="/api/docs"
     )
     setup_store(app)
+    setup_bot(app)
     return app
