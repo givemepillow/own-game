@@ -220,7 +220,7 @@ class VkAPIAccessor(CleanupCTX):
                 case error:
                     self.logger.error('_get_long_poll_service ' + json.dumps(error, indent=2))
 
-    async def _get_upload_url(self, chat_id: int) -> str | None:
+    async def get_upload_url(self, chat_id: int) -> str | None:
         async with self._session.post(
                 self._url("photos.getMessagesUploadServer"),
                 params=self._params(peer_id=chat_id)
@@ -233,7 +233,7 @@ class VkAPIAccessor(CleanupCTX):
                     self.logger.error('_get_upload_url ' + json.dumps(error, indent=2))
             return None
 
-    async def _upload_photo(self, upload_url: str, photo_path: str) -> (str | None, str | None, str | None):
+    async def upload_photo(self, upload_url: str, photo_path: str) -> (str | None, str | None, str | None):
         with open(photo_path, mode='rb') as photo_file:
             async with self._session.post(upload_url, data=dict(photo=photo_file)) as response:
                 # Иногда ВК присылает 'text/html'
@@ -245,7 +245,7 @@ class VkAPIAccessor(CleanupCTX):
                         self.logger.error('_upload_photo: ' + json.dumps(error, indent=2))
                 return None, None, None
 
-    async def _save_photo(self, photo: str, server: str, photo_hash: str) -> str | None:
+    async def save_photo(self, photo: str, server: str, photo_hash: str) -> str | None:
         response = await self._session.post(
             self._url('photos.saveMessagesPhoto'),
             params=self._params(server=server, hash=photo_hash, photo=photo)
@@ -258,7 +258,7 @@ class VkAPIAccessor(CleanupCTX):
                 self.logger.error('_save_photo: ' + json.dumps(error, indent=2))
         return None
 
-    async def _get_message_text(self, chat_id: int, conversation_message_id: int) -> str:
+    async def get_message_text(self, chat_id: int, conversation_message_id: int) -> str:
         async with self._session.get(self._url("messages.getByConversationMessageId"), params=self._params(
                 peer_id=chat_id,
                 conversation_message_ids=[conversation_message_id]
@@ -269,11 +269,6 @@ class VkAPIAccessor(CleanupCTX):
                     return text
                 case error:
                     self.logger.error('_get_message_text: ' + json.dumps(error, indent=2))
-
-    async def _make_attachment(self, chat_id: int, photo_path: str):
-        upload_url = await self._get_upload_url(chat_id)
-        server, photo, photo_hash = await self._upload_photo(upload_url, photo_path)
-        return await self._save_photo(server=server, photo=photo, photo_hash=photo_hash)
 
     @staticmethod
     def _inline_keyboard_markup(inline_keyboard: InlineKeyboard | None = None) -> str:

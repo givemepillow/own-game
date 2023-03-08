@@ -75,31 +75,33 @@ class ShowRating(Command):
     update: BotUpdate
 
 
-# @dataclass(slots=True)
-# class ShowPress(Command):
-#     update: BotCallbackQuery
-#     text: str
-
-
 @dataclass(slots=True)
 class VkRenderQuestions(Command):
+    update: BotUpdate
     text: str
-    update: BotCallbackQuery
+    message_id: int
 
 
 @dataclass(slots=True)
 class TelegramRenderQuestions(Command):
+    update: BotUpdate
     text: str
-    update: BotCallbackQuery
+    message_id: int
 
 
 @dataclass(slots=True)
 class HideQuestions(Command):
-    update: BotCallbackQuery
+    update: BotUpdate
     message_ids: list[int]
 
 
 @dataclass(slots=True)
-class HideQuestionsTimeout(Command):
-    update: BotCallbackQuery
-    message_ids: list[int]
+class ShowQuestion(Command):
+    update: BotUpdate
+    text: str
+
+
+@dataclass(slots=True)
+class ShowPhoto(Command):
+    update: BotUpdate
+    path: str

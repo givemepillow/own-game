@@ -635,6 +635,11 @@ class AnswerTimeout(Handler):
                 )
 
 
+class ShowPhoto(Handler):
+    async def handler(self, msg: commands.ShowPhoto):
+        await self.app.bot(msg.update).send_photo(msg.path, "🔍 Внимательно посмотрите на изображение.")
+
+
 def setup_handlers(app: Application):
     app.bus.register({
         commands.Play: [GameCreator],

@@ -1,17 +1,19 @@
 from dataclasses import dataclass
 
 from app.abc.message import Event
-from app.bot.updates import BotCallbackQuery, BotUpdate
+from app.bot.updates import BotCallbackQuery, BotUpdate, BotMessage
 
 
 @dataclass(slots=True)
 class QuestionFinished(Event):
-    update: BotCallbackQuery
+    update: BotUpdate
+    message_id: int
 
 
 @dataclass(slots=True)
 class GameFinished(Event):
     update: BotUpdate
+    message_id: int
 
 
 @dataclass(slots=True)
@@ -28,17 +30,20 @@ class RegistrationTimeout(Event):
 
 @dataclass(slots=True)
 class WaitingSelectionTimeout(Event):
-    update: BotCallbackQuery
+    update: BotUpdate
+    message_id: int
 
 
 @dataclass(slots=True)
 class WaitingPressTimeout(Event):
-    update: BotCallbackQuery
+    update: BotUpdate
+    message_id: int
 
 
 @dataclass(slots=True)
 class WaitingForAnswerTimeout(Event):
-    update: BotCallbackQuery
+    update: BotUpdate
+    message_id: int
 
 
 @dataclass(slots=True)

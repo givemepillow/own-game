@@ -26,6 +26,8 @@ class Question(Base):
     cost: Mapped[int] = mapped_column(nullable=False)
     question: Mapped[str] = mapped_column(sa.String(200), nullable=False)
     answer: Mapped[str] = mapped_column(sa.String(80), nullable=False)
+    filename: Mapped[str] = mapped_column(sa.String(100), nullable=True)
+    content_type: Mapped[str] = mapped_column(sa.String(30), nullable=True)
 
     theme_id: Mapped[int] = mapped_column(sa.ForeignKey("themes.id"))
     theme: Mapped[Theme] = relationship(
@@ -56,6 +58,16 @@ class Question(Base):
             answer=answer
         )
 
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "cost": self.cost,
+            "question": self.question,
+            "answer": self.answer,
+            "filename": self.filename,
+            "content_type": self.content_type
+        }
+
 
 class Theme(Base):
     __tablename__ = "themes"
@@ -80,6 +92,16 @@ class Theme(Base):
             author=author,
             questions=[Question.from_dict(**q) for q in questions]
         )
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "author": self.author,
+            "is_available": self.is_available,
+            "created_at": self.created_at.isoformat(),
+            "questions": [q.as_dict() for q in self.questions]
+        }
 
 
 class Player(Base):
@@ -160,14 +182,14 @@ class Game(Base):
         self.current_user_id = player.user_id
         return player
 
-    def select(self, question_id: int) -> Optional[Question]:
+    def select(self, question_id: int) -> (Question, Theme):
         self.state: GameState = GameState.WAITING_FOR_PRESS
         for t in self.themes:
             for q in t.questions:
                 if q.id == question_id:
                     self.selected_questions.append(q.id)
                     self.current_question = q
-                    return q
+                    return q, t
 
     def press(self, player: Player) -> NoReturn:
         self.state: GameState = GameState.WAITING_FOR_ANSWER
