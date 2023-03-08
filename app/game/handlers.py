@@ -175,8 +175,8 @@ class GameStarter(Handler):
 
             await uow.commit()
 
-            text = f"🔮 Так сошлись звезды...\n{current_player.mention} будет первым выбирать вопрос.\n" \
-                   f"⏱ {Delay.WAIT_SELECTION} сек."
+            text = f"🔮 Так сошлись звезды...\n{current_player.mention} будет первым выбирать вопрос." \
+                   f"\n\n⏱ {Delay.WAIT_SELECTION} сек."
 
             if msg.update.origin == Origin.TELEGRAM:
                 self.app.bus.publish(commands.TelegramRenderQuestions(msg.update, text, msg.update.message_id))
