@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
     from app.utils.config import Config
     from app.store import Store
     from app.bot.proxy import BotProxy
+    from app.store.bus import MessageBus
 
 
 class Application(AiohttpApplication):
@@ -25,6 +26,10 @@ class Application(AiohttpApplication):
     @property
     def bot(self) -> BotProxy:
         return self['bot_proxy']
+
+    @property
+    def bus(self) -> MessageBus:
+        return self['bus']
 
 
 class Request(AiohttpRequest):
