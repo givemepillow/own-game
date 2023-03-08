@@ -19,11 +19,11 @@ class CallbackType(StrEnum):
 def make_registration(current_players_number: int = 0) -> InlineKeyboard:
     keyboard = InlineKeyboard()
     keyboard.add(
-        InlineButton("Играю", CallbackData(CallbackType.JOIN)),
-        InlineButton("Не играю", CallbackData(CallbackType.CANCEL_JOIN))
+        InlineButton("Играю 🎮", CallbackData(CallbackType.JOIN)),
+        InlineButton("Не играю 🚪", CallbackData(CallbackType.CANCEL_JOIN))
     )
     if current_players_number > 0:
-        keyboard.add(InlineButton("Начать", CallbackData(CallbackType.START_GAME)))
+        keyboard.add(InlineButton("▶️ Начать", CallbackData(CallbackType.START_GAME)))
     return keyboard
 
 
@@ -58,21 +58,21 @@ def make_vertical(theme: Theme, already_selected: list[int]):
 
 def make_answer_button():
     keyboard = InlineKeyboard()
-    keyboard.add(InlineButton("Ответить", CallbackData(CallbackType.PRESS_BUTTON)))
+    keyboard.add(InlineButton("Ответить 🎯", CallbackData(CallbackType.PRESS_BUTTON)))
     return keyboard
 
 
 def make_checker():
     keyboard = InlineKeyboard()
-    keyboard.add(InlineButton("Подглядеть ответ", CallbackData(CallbackType.PEEK)))
+    keyboard.add(InlineButton("Подглядеть ответ 👀", CallbackData(CallbackType.PEEK)))
     keyboard.add(
-        InlineButton("Принять", CallbackData(CallbackType.ACCEPT)),
-        InlineButton("Отклонить", CallbackData(CallbackType.REJECT))
+        InlineButton("✅ Принять", CallbackData(CallbackType.ACCEPT)),
+        InlineButton("❌ Отклонить", CallbackData(CallbackType.REJECT))
     )
     return keyboard
 
 
 def make_become_leading():
     keyboard = InlineKeyboard()
-    keyboard.add(InlineButton("Я буду ведущим.", CallbackData(CallbackType.BECOME_LEADING)))
+    keyboard.add(InlineButton("🙋 Я буду ведущим.", CallbackData(CallbackType.BECOME_LEADING)))
     return keyboard
