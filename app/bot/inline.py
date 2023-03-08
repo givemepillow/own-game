@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Final
 
 PLUG: Final = '_'
+TRANSPARENT: Final = 'ᅠᅠ'
 
 
 @dataclass(slots=True)
@@ -12,7 +13,7 @@ class CallbackData:
 
 @dataclass(slots=True)
 class InlineButton:
-    text: str = ' '
+    text: str = TRANSPARENT
     callback_data: CallbackData = field(default_factory=CallbackData)
 
 

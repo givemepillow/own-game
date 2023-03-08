@@ -10,6 +10,10 @@ class VkBot(AbstractBot):
         self._api = api
         self._update = update
 
+    @property
+    def bot_id(self) -> int:
+        return abs(self._api.bot_id)
+
     async def get_user(self, chat_id: int | None = None, user_id: int | None = None) -> BotUser:
         if self._update is not None:
             user_id = user_id or self._update.user_id
@@ -17,12 +21,13 @@ class VkBot(AbstractBot):
         if not user_id:
             raise ValueError(f"Not enough params! ({user_id=})")
 
-        await self._api.get_user(user_id)
+        return await self._api.get_user(user_id)
 
     async def send(
             self,
             text: str,
             inline_keyboard: InlineKeyboard | None = None,
+            photo_path: str | None = None,
             /, *,
             chat_id: int | None = None
     ) -> int:
@@ -38,7 +43,26 @@ class VkBot(AbstractBot):
             inline_keyboard=inline_keyboard
         )
 
-    async def delete(self, chat_id: int | None = None, message_id: int | None = None):
+    async def send_photo(
+            self,
+            photo_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        if self._update is not None:
+            chat_id = chat_id or self._update.chat_id
+
+        if chat_id is None:
+            raise ValueError(f"Not enough params! ({chat_id=})")
+
+        upload_url = await self._api.get_upload_url(chat_id)
+        server, photo, photo_hash = await self._api.upload_photo(upload_url, photo_path)
+        attachment = await self._api.save_photo(photo, server, photo_hash)
+
+        return await self._api.send_message(chat_id, text=text, attachment=attachment)
+
+    async def delete(self, message_id: int | None = None, chat_id: int | None = None):
         if isinstance(self._update, BotCallbackQuery):
             message_id = message_id or self._update.message_id
 

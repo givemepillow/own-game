@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from random import choice, sample
+from typing import Optional, NoReturn
 
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
@@ -23,8 +24,10 @@ class Question(Base):
     id: Mapped[int] = mapped_column(primary_key=True, compare=True)
 
     cost: Mapped[int] = mapped_column(nullable=False)
-    question: Mapped[str] = mapped_column(sa.String(200), nullable=False)
+    question: Mapped[str] = mapped_column(sa.String(500), nullable=False)
     answer: Mapped[str] = mapped_column(sa.String(80), nullable=False)
+    filename: Mapped[str] = mapped_column(sa.String(100), nullable=True)
+    content_type: Mapped[str] = mapped_column(sa.String(30), nullable=True)
 
     theme_id: Mapped[int] = mapped_column(sa.ForeignKey("themes.id"))
     theme: Mapped[Theme] = relationship(
@@ -35,6 +38,18 @@ class Question(Base):
         sa.UniqueConstraint("theme_id", "cost"),
     )
 
+    def __le__(self, other: Question):
+        return self.cost <= other.cost
+
+    def __lt__(self, other: Question):
+        return self.cost < other.cost
+
+    def __ge__(self, other: Question):
+        return self.cost >= other.cost
+
+    def __gt__(self, other: Question):
+        return self.cost < other.cost
+
     @classmethod
     def from_dict(cls, question: str, complexity: QuestionComplexity, answer: str, **_):
         return cls(
@@ -42,6 +57,16 @@ class Question(Base):
             cost=QuestionComplexity(complexity).value,
             answer=answer
         )
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "cost": self.cost,
+            "question": self.question,
+            "answer": self.answer,
+            "filename": self.filename,
+            "content_type": self.content_type
+        }
 
 
 class Theme(Base):
@@ -68,6 +93,16 @@ class Theme(Base):
             questions=[Question.from_dict(**q) for q in questions]
         )
 
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "author": self.author,
+            "is_available": self.is_available,
+            "created_at": self.created_at.isoformat(),
+            "questions": [q.as_dict() for q in self.questions]
+        }
+
 
 class Player(Base):
     """
@@ -79,6 +114,8 @@ class Player(Base):
     origin: Mapped[Origin] = mapped_column(sa.Enum(Origin), nullable=False, compare=True)
     user_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
     chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
+    name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    username: Mapped[str] = mapped_column(sa.String(100), nullable=True)
 
     points: Mapped[int] = mapped_column(nullable=False, default=0)
 
@@ -86,6 +123,16 @@ class Player(Base):
 
     game_id: Mapped[int] = mapped_column(sa.ForeignKey("games.id", ondelete="CASCADE"), nullable=False)
     game: Mapped[Game] = relationship(back_populates="players", lazy='noload')
+
+    @property
+    def mention(self) -> str:
+        return f"{self.link} @{self.username}" if self.username else self.name
+
+    @property
+    def link(self):
+        if self.origin == Origin.TELEGRAM:
+            return f"""<a href="tg://user?id={self.user_id}">{self.name}</a>"""
+        return f"""@id{self.user_id} ({self.name})"""
 
     __table_args__ = (sa.UniqueConstraint("origin", "user_id", "chat_id"),)
 
@@ -124,3 +171,103 @@ class Game(Base):
     themes: Mapped[list[Theme]] = relationship(secondary=game_themes, lazy="joined", innerjoin=False)
 
     __table_args__ = (sa.UniqueConstraint("origin", "chat_id"),)
+
+    @property
+    def leading_link(self):
+        if self.origin == Origin.TELEGRAM:
+            return f"""<a href="tg://user?id={self.leading_user_id}">ведущий</a>"""
+        return f"""@id{self.leading_user_id} (ведущий)"""
+
+    def set_leading(self, user_id: int):
+        self.state: GameState = GameState.REGISTRATION
+        self.leading_user_id: int = user_id
+
+    def register(self, player: Player):
+        self.players.append(player)
+
+    def unregister(self, player: Player) -> bool:
+        try:
+            self.players.remove(player)
+            return True
+        except ValueError:
+            return False
+
+    def start(self, themes: list[Theme]) -> Player:
+        self.state: GameState = GameState.QUESTION_SELECTION
+        self.themes.extend(sample(themes, k=2))
+        player = choice(self.players)
+        self.current_user_id = player.user_id
+        return player
+
+    def select(self, question_id: int) -> (Question, Theme):
+        self.state: GameState = GameState.WAITING_FOR_PRESS
+        for t in self.themes:
+            for q in t.questions:
+                if q.id == question_id:
+                    self.selected_questions.append(q.id)
+                    self.current_question = q
+                    return q, t
+
+    def press(self, player: Player) -> NoReturn:
+        self.state: GameState = GameState.WAITING_FOR_ANSWER
+        self.answering_user_id = player.user_id
+
+    def answer(self) -> NoReturn:
+        self.state: GameState = GameState.WAITING_FOR_CHECKING
+
+    def accept(self, player: Player) -> NoReturn:
+        self.answering_user_id: int | None = None
+        self.current_user_id = player.user_id
+        player.points += self.current_question.cost
+
+    def start_selection(self) -> Player:
+        self.state: GameState = GameState.QUESTION_SELECTION
+        for p in self.players:
+            p.already_answered = False
+        return self.get_current_player()
+
+    def reject(self, player: Player):
+        self.state: GameState = GameState.WAITING_FOR_PRESS
+        self.answering_user_id: int | None = None
+
+        player.already_answered = True
+        player.points -= self.current_question.cost
+
+    def is_all_answered(self):
+        for p in self.players:
+            if not p.already_answered:
+                return False
+        return True
+
+    def get_answering_player(self) -> Player:
+        for p in self.players:
+            if p.user_id == self.answering_user_id:
+                return p
+
+    def get_current_player(self) -> Player:
+        for p in self.players:
+            if p.user_id == self.current_user_id:
+                return p
+
+    def any_questions(self) -> bool:
+        return len(self.selected_questions) < 10
+
+    def finish(self):
+        self.themes.clear()
+
+
+class DelayedMessage(Base):
+    __tablename__ = "delayed_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    origin: Mapped[Origin] = mapped_column(sa.Enum(Origin), nullable=False)
+    delay: Mapped[int] = mapped_column(nullable=False)
+    chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False)
+    data: Mapped[bytes] = mapped_column(sa.LargeBinary(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=sa.func.now(tz='UTC'))
+
+    @property
+    def seconds_remaining(self):
+        _delay = int(self.delay - (datetime.now(tz=timezone.utc) - self.created_at).total_seconds())
+        return _delay if _delay > 1 else 1
