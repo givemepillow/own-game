@@ -11,7 +11,7 @@ class AbstractSignature:
     origin: Origin
     chat_type: ChatType
 
-    def match(self, update: BotUpdate):
+    def match(self, update: BotUpdate) -> bool:
         return all((
             self.origin is None or self.origin == update.origin,
             self.chat_type is None or self.chat_type == update.chat_type
@@ -27,7 +27,7 @@ class MessageSignature(AbstractSignature):
         if self.regex:
             self.pattern = re.compile(self.regex)
 
-    def match(self, message: BotMessage):
+    def match(self, message: BotMessage) -> bool:
         return all((
             super().match(message),
             self.pattern is None or self.pattern.fullmatch(message.text)
@@ -43,7 +43,7 @@ class CommandSignature(AbstractSignature):
         if self.commands:
             self.commands_set.update(self.commands)
 
-    def match(self, command: BotCommand):
+    def match(self, command: BotCommand) -> bool:
         return all((
             super().match(command),
             self.commands is None or command.command in self.commands
@@ -54,7 +54,7 @@ class CommandSignature(AbstractSignature):
 class CallbackQuerySignature(AbstractSignature):
     data_type: str
 
-    def match(self, callback_query: BotCallbackQuery):
+    def match(self, callback_query: BotCallbackQuery) -> bool:
         return all((
             super().match(callback_query),
             self.data_type is None or callback_query.callback_data.type == self.data_type
@@ -65,5 +65,5 @@ class CallbackQuerySignature(AbstractSignature):
 @dataclass
 class ActionSignature(AbstractSignature):
 
-    def match(self, callback_query: BotAction):
+    def match(self, callback_query: BotAction) -> bool:
         return super().match(callback_query)

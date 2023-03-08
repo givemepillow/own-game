@@ -29,6 +29,7 @@ class MessageBus(CleanupCTX):
         await self._runner.start()
 
     async def on_shutdown(self):
+        await self._queue.join()
         await self._runner.stop()
 
     def register(self, handlers: dict[Type[Message], list[Type[Handler]]]):

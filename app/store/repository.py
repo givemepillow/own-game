@@ -58,7 +58,7 @@ class ThemeRepository(AbstractRepository):
         self.session.add(theme)
 
     async def get(self, theme_id: int) -> object:
-        return (await self.session.execute(select(Theme))).scalar()
+        return (await self.session.execute(select(Theme).where(Theme.id == theme_id))).scalar()
 
     async def list(self) -> list[object]:
         return list((await self.session.execute(select(Theme))).unique().scalars())
