@@ -115,6 +115,7 @@ class Player(Base):
     user_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
     chat_id: Mapped[int] = mapped_column(sa.BigInteger, nullable=False, compare=True)
     name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    username: Mapped[str] = mapped_column(sa.String(100), nullable=True)
 
     points: Mapped[int] = mapped_column(nullable=False, default=0)
 
@@ -122,6 +123,16 @@ class Player(Base):
 
     game_id: Mapped[int] = mapped_column(sa.ForeignKey("games.id", ondelete="CASCADE"), nullable=False)
     game: Mapped[Game] = relationship(back_populates="players", lazy='noload')
+
+    @property
+    def mention(self) -> str:
+        return f"{self.link} @{self.username}" if self.username else self.name
+
+    @property
+    def link(self):
+        if self.origin == Origin.TELEGRAM:
+            return f"""<a href="tg://user?id={self.user_id}">{self.name}</a>"""
+        return f"""@id{self.user_id} ({self.name})"""
 
     __table_args__ = (sa.UniqueConstraint("origin", "user_id", "chat_id"),)
 
@@ -160,6 +171,12 @@ class Game(Base):
     themes: Mapped[list[Theme]] = relationship(secondary=game_themes, lazy="joined", innerjoin=False)
 
     __table_args__ = (sa.UniqueConstraint("origin", "chat_id"),)
+
+    @property
+    def leading_link(self):
+        if self.origin == Origin.TELEGRAM:
+            return f"""<a href="tg://user?id={self.leading_user_id}">ведущий</a>"""
+        return f"""@id{self.leading_user_id} (ведущий)"""
 
     def set_leading(self, user_id: int):
         self.state: GameState = GameState.REGISTRATION

@@ -120,7 +120,10 @@ class TelegramAPIAccessor(CleanupCTX):
             response = await self._session.get(url=self._url("sendMessage"), params=dict(
                 chat_id=chat_id,
                 text=text,
-                reply_markup=self._inline_keyboard_markup(inline_keyboard)
+                parse_mode='HTML',
+                **dict(
+                    reply_markup=self._inline_keyboard_markup(inline_keyboard)
+                ) if inline_keyboard else {}
             ))
         match await response.json(loads=orjson.loads):
             case {"ok": False, "error_code": 429, "parameters": {
@@ -161,6 +164,7 @@ class TelegramAPIAccessor(CleanupCTX):
                 chat_id=chat_id,
                 message_id=message_id,
                 text=text,
+                parse_mode='HTML',
                 **dict(
                     reply_markup=self._inline_keyboard_markup(inline_keyboard)
                 ) if inline_keyboard and not remove_inline_keyboard else {}

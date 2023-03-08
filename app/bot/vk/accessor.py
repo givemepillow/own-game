@@ -85,6 +85,7 @@ class VkAPIAccessor(CleanupCTX):
                     peer_ids=[chat_id],
                     message=text,
                     keyboard=self._inline_keyboard_markup(inline_keyboard),
+                    dont_parse_links=0,
                     attachment=attachment
                 )
         ) as response:
@@ -124,8 +125,9 @@ class VkAPIAccessor(CleanupCTX):
 
         async with self._session.get(self._url("messages.edit"), params=self._params(
                 conversation_message_id=conversation_message_id,
-                message=text or await self._get_message_text(chat_id, conversation_message_id),
+                message=text or await self.get_message_text(chat_id, conversation_message_id),
                 peer_id=chat_id,
+                dont_parse_links=0,
                 **dict(
                     keyboard=self._inline_keyboard_markup(inline_keyboard)
                 ) if inline_keyboard and not remove_inline_keyboard else {}
