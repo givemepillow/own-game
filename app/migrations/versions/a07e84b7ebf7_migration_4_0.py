@@ -1,8 +1,8 @@
-"""refactoring migration
+"""migration 4.0
 
-Revision ID: ff6a6e38724b
+Revision ID: a07e84b7ebf7
 Revises: 
-Create Date: 2023-03-03 02:29:51.966793
+Create Date: 2023-03-08 16:57:35.397302
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'ff6a6e38724b'
+revision = 'a07e84b7ebf7'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -25,6 +25,16 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk-admins')),
     sa.UniqueConstraint('email', name=op.f('uq-admins-email'))
     )
+    op.create_table('delayed_messages',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
+    sa.Column('delay', sa.Integer(), nullable=False),
+    sa.Column('chat_id', sa.BigInteger(), nullable=False),
+    sa.Column('data', sa.LargeBinary(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk-delayed_messages'))
+    )
     op.create_table('themes',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=50), nullable=False),
@@ -37,8 +47,10 @@ def upgrade() -> None:
     op.create_table('questions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cost', sa.Integer(), nullable=False),
-    sa.Column('question', sa.String(length=200), nullable=False),
+    sa.Column('question', sa.String(length=500), nullable=False),
     sa.Column('answer', sa.String(length=80), nullable=False),
+    sa.Column('filename', sa.String(length=100), nullable=True),
+    sa.Column('content_type', sa.String(length=30), nullable=True),
     sa.Column('theme_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-questions-theme_id-themes')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-questions')),
@@ -71,6 +83,8 @@ def upgrade() -> None:
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('username', sa.String(length=100), nullable=True),
     sa.Column('points', sa.Integer(), nullable=False),
     sa.Column('already_answered', sa.Boolean(), nullable=False),
     sa.Column('game_id', sa.Integer(), nullable=False),
@@ -88,7 +102,8 @@ def downgrade() -> None:
     op.drop_table('games')
     op.drop_table('questions')
     op.drop_table('themes')
+    op.drop_table('delayed_messages')
     op.drop_table('admins')
-    op.execute('drop type gamestate')
     op.execute('drop type origin')
+    op.execute('drop type gamestate')
     # ### end Alembic commands ###

@@ -24,7 +24,7 @@ class Question(Base):
     id: Mapped[int] = mapped_column(primary_key=True, compare=True)
 
     cost: Mapped[int] = mapped_column(nullable=False)
-    question: Mapped[str] = mapped_column(sa.String(200), nullable=False)
+    question: Mapped[str] = mapped_column(sa.String(500), nullable=False)
     answer: Mapped[str] = mapped_column(sa.String(80), nullable=False)
     filename: Mapped[str] = mapped_column(sa.String(100), nullable=True)
     content_type: Mapped[str] = mapped_column(sa.String(30), nullable=True)
