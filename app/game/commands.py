@@ -96,12 +96,19 @@ class HideQuestions(Command):
 
 
 @dataclass(slots=True)
-class ShowQuestion(Command):
+class ShowPress(Command):
     update: BotUpdate
     text: str
 
 
 @dataclass(slots=True)
-class ShowPhoto(Command):
+class ShowTextQuestion(Command):
     update: BotUpdate
+    text: str
+
+
+@dataclass(slots=True)
+class ShowPhotoQuestion(Command):
+    update: BotUpdate
+    text: str
     path: str

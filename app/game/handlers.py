@@ -113,12 +113,15 @@ class GameJoin(Handler):
                 if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
                     return
 
+                user = await self.app.bot(msg.update).get_user()
+
                 game.register(
                     Player(
                         origin=msg.update.origin,
                         user_id=msg.update.user_id,
                         chat_id=msg.update.chat_id,
-                        name=(await self.app.bot(msg.update).get_user()).mention
+                        name=user.name,
+                        username=user.username
                     )
                 )
 
@@ -172,7 +175,7 @@ class GameStarter(Handler):
 
             await uow.commit()
 
-            text = f"🔮 Так сошлись звезды...\n{current_player.name} будет первым выбирать вопрос.\n" \
+            text = f"🔮 Так сошлись звезды...\n{current_player.mention} будет первым выбирать вопрос.\n" \
                    f"⏱ {Delay.WAIT_SELECTION} сек."
 
             if msg.update.origin == Origin.TELEGRAM:
@@ -195,16 +198,35 @@ class QuestionSelector(Handler):
 
             await uow.commit()
 
+            current_player = game.get_current_player()
+
             await self.app.bus.force_publish(commands.HideQuestions, msg.update.origin, msg.update.chat_id)
 
-            text = f"📌 Вы выбрали «{theme.title} за {question.cost}»."
+            text = f"📌 {current_player.link} выбрал (a) «{theme.title} за {question.cost}»."
 
+            delay = Delay.TEXT_QUESTION
             if question.filename:
+                delay = Delay.PHOTO_QUESTION
                 text += "\n\n🏞 Это вопрос с картинкой."
                 await self.app.bus.postpone_publish(
-                    commands.ShowPhoto(msg.update, self.app.store.path(question.filename)),
+                    commands.ShowPhotoQuestion(
+                        msg.update,
+                        f"🔍 Внимательно посмотрите на изображение.\n\n"
+                        f"📄 {game.current_question.question}",
+                        self.app.store.path(question.filename)
+                    ),
                     msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
                 )
+            else:
+                await self.app.bus.postpone_publish(
+                    commands.ShowTextQuestion(msg.update, f"📄 {game.current_question.question}"),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
+                )
+
+            await self.app.bus.postpone_publish(
+                commands.ShowPress(msg.update, f"Кто хочет ответить? 📝\n\n⏱ {Delay.WAIT_PRESS} сек."),
+                msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE + delay
+            )
 
             if msg.update.origin == Origin.TELEGRAM:
                 await self.app.bot(msg.update).edit(
@@ -215,14 +237,9 @@ class QuestionSelector(Handler):
             else:
                 await self.app.bot(msg.update).send(text)
 
-            await self.app.bus.postpone_publish(
-                commands.ShowQuestion(msg.update, f"📄 {game.current_question.question}\n\n⏱ {Delay.WAIT_PRESS} сек."),
-                msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE * (2 if question.filename else 1)
-            )
 
-
-class ShowQuestion(Handler):
-    async def handler(self, msg: commands.ShowQuestion):
+class ShowPress(Handler):
+    async def handler(self, msg: commands.ShowPress):
         message_id = await self.app.bot(msg.update).send(
             msg.text,
             kb.make_answer_button(),
@@ -256,7 +273,7 @@ class PressButton(Handler):
             await uow.commit()
 
             await bot.edit(
-                f"📄 {game.current_question.question}\n\n🚀 {player.name}, вы всех опередили! Отвечайте."
+                f"🚀 {player.mention}, вы всех опередили! Отвечайте."
                 f"\n\n⏱ {Delay.WAIT_ANSWER} сек.",
                 remove_inline_keyboard=True
             )
@@ -283,7 +300,7 @@ class Answer(Handler):
             await uow.commit()
 
             message_id = await self.app.bot(msg.update).send(
-                f"Что скажет ведущий? 🤔\n\n⏱ {Delay.WAIT_CHECKING} сек.",
+                f"Что скажет {game.leading_link}? 🤔\n\n⏱ {Delay.WAIT_CHECKING} сек.",
                 kb.make_checker()
             )
 
@@ -324,7 +341,7 @@ class AcceptAnswer(Handler):
             await uow.commit()
 
             await self.app.bot(msg.update).edit(
-                f"💯 Просто превосходно, {player.name}!\n"
+                f"💯 Просто превосходно, {player.link}!\n\n"
                 f"📈 Вы получаете {tools.convert_number(game.current_question.cost)} очков!",
                 remove_inline_keyboard=True
             )
@@ -356,7 +373,7 @@ class RejectAnswer(Handler):
 
             if game.is_all_answered():
                 await self.app.bot(msg.update).edit(
-                    f"{player.name}, к сожалению, ответ неверный... 😔"
+                    f"{player.link}, к сожалению, ответ неверный... 😔\n\n"
                     f"📉 Вы теряете {tools.convert_number(game.current_question.cost)} очков.\n\n"
                     f"👉 Правильным ответом было: «{game.current_question.answer}».",
                     remove_inline_keyboard=True
@@ -369,7 +386,7 @@ class RejectAnswer(Handler):
                 )
             else:
                 await self.app.bot(msg.update).edit(
-                    f"{player.name}, к сожалению, ответ неверный... 😔\n"
+                    f"{player.link}, к сожалению, ответ неверный... 😔\n\n"
                     f"📉 Вы теряете {tools.convert_number(game.current_question.cost)} очков.\n\n"
                     f"⚠️ Кто-нибудь хочет ответить?\n\n⏱ {Delay.WAIT_PRESS} сек.",
                     inline_keyboard=kb.make_answer_button()
@@ -400,11 +417,11 @@ class NextSelection(Handler):
             await uow.commit()
 
             await self.app.bot(msg.update).edit(
-                "Рейтинг на данный момент:\n\n" + tools.players_rating(game.players),
+                "📊 Рейтинг на данный момент:\n\n" + tools.players_rating(game.players),
                 remove_inline_keyboard=True, message_id=msg.message_id
             )
 
-            text = f"{current_player.name}, выбирайте вопрос.\n\n⏱ {Delay.WAIT_SELECTION} сек."
+            text = f"{current_player.mention}, выбирайте вопрос.\n\n⏱ {Delay.WAIT_SELECTION} сек."
             if msg.update.origin == Origin.TELEGRAM:
                 await self.app.bus.postpone_publish(
                     commands.TelegramRenderQuestions(msg.update, text, msg.message_id),
@@ -489,7 +506,7 @@ class Results(Handler):
 
             await self.app.bot(msg.update).edit(
                 f"🎉🎊 ИГРА ЗАВЕРШЕНА!!! 🎊🎉\n\n👑 ПОЗДРАВЛЯЕМ ПОБЕДИТЕЛЯ: "
-                f"{max(game.players, key=lambda p: p.points).name}!\n\n" + tools.players_rating(game.players),
+                f"{max(game.players, key=lambda p: p.points).link}!\n\n" + tools.players_rating(game.players),
                 remove_inline_keyboard=True, message_id=msg.message_id
             )
 
@@ -506,7 +523,7 @@ class CheckingTimeout(Handler):
             await uow.commit()
 
             await self.app.bot(msg.update).edit(
-                f"Кажется ведущий оставил нас... 🤡\n\nИГРА ОТМЕНЕНА!\n\n"
+                f"Кажется {game.leading_link} оставил нас... 🤡\n\nИГРА ОТМЕНЕНА!\n\n"
                 f"Рейтинг игровой сессии:\n\n" + tools.players_rating(game.players),
                 remove_inline_keyboard=True,
                 message_id=msg.message_id
@@ -550,12 +567,24 @@ class SelectionTimeout(Handler):
             text = f"⏳ ВРЕМЯ НА ВЫБОР ВОПРОСА ИСТЕКЛО.\n\n" \
                    f"🎲 Случайный вопрос:  «{theme.title} за {question.cost}»."
 
+            delay = Delay.TEXT_QUESTION
             if question.filename:
-                text += f"\n\n🏞 Вопрос с картинкой."
+                text += f"\n\n🏞 Вопрос с картинкой.\n\n"
+                delay = Delay.PHOTO_QUESTION
                 await self.app.bus.postpone_publish(
-                    commands.ShowPhoto(
+                    commands.ShowPhotoQuestion(
                         msg.update,
+                        f"🔍 Внимательно посмотрите на изображение.\n\n"
+                        f"📄 {game.current_question.question}",
                         self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
+                )
+            else:
+                await self.app.bus.postpone_publish(
+                    commands.ShowTextQuestion(
+                        msg.update,
+                        f"📄 {game.current_question.question}",
                     ),
                     msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
                 )
@@ -566,8 +595,8 @@ class SelectionTimeout(Handler):
                 await self.app.bot(msg.update).send(text)
 
             await self.app.bus.postpone_publish(
-                commands.ShowQuestion(msg.update, f"📄 {game.current_question.question}\n\n⏱ {Delay.WAIT_PRESS} сек."),
-                msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE * (2 if question.filename else 1)
+                commands.ShowPress(msg.update, f"Кто хочет ответить? 📝\n\n⏱ {Delay.WAIT_PRESS} сек."),
+                msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE + delay
             )
 
 
@@ -608,7 +637,7 @@ class AnswerTimeout(Handler):
 
             if game.is_all_answered():
                 await self.app.bot(msg.update).edit(
-                    f"⏳ {player.name}, ваше время на ответ истекло.\n\n"
+                    f"⏳ {player.link}, ваше время на ответ истекло.\n\n"
                     f"📉 Вы теряете {tools.convert_number(game.current_question.cost)} очков.\n\n"
                     f"👉 Правильным ответом было: «{game.current_question.answer}».",
                     remove_inline_keyboard=True, message_id=msg.message_id
@@ -619,7 +648,7 @@ class AnswerTimeout(Handler):
                 )
             else:
                 await self.app.bot(msg.update).edit(
-                    f"⏳ {player.name}, ваше время на ответ истекло.\n\n"
+                    f"⏳ {player.link}, ваше время на ответ истекло.\n\n"
                     f"📉 Вы теряете {tools.convert_number(game.current_question.cost)} очков.\n\n"
                     f"⚠️ Кто-нибудь хочет ответить?\n\n⏱ {Delay.WAIT_PRESS} сек.",
                     inline_keyboard=kb.make_answer_button(), message_id=msg.message_id
@@ -632,9 +661,14 @@ class AnswerTimeout(Handler):
                 )
 
 
-class ShowPhoto(Handler):
-    async def handler(self, msg: commands.ShowPhoto):
-        await self.app.bot(msg.update).send_photo(msg.path, "🔍 Внимательно посмотрите на изображение.")
+class ShowPhotoQuestion(Handler):
+    async def handler(self, msg: commands.ShowPhotoQuestion):
+        await self.app.bot(msg.update).send_photo(msg.path, msg.text)
+
+
+class ShowTextQuestion(Handler):
+    async def handler(self, msg: commands.ShowTextQuestion):
+        await self.app.bot(msg.update).send(msg.text)
 
 
 def setup_handlers(app: Application):
@@ -658,8 +692,9 @@ def setup_handlers(app: Application):
         commands.VkRenderQuestions: [VkQuestionSelector],
         commands.TelegramRenderQuestions: [TelegramQuestionSelector],
         commands.HideQuestions: [HideQuestions],
-        commands.ShowPhoto: [ShowPhoto],
-        commands.ShowQuestion: [ShowQuestion],
+        commands.ShowPhotoQuestion: [ShowPhotoQuestion],
+        commands.ShowTextQuestion: [ShowTextQuestion],
+        commands.ShowPress: [ShowPress],
 
         events.QuestionFinished: [NextSelection],
         events.GameFinished: [Results],

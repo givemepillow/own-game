@@ -15,9 +15,9 @@ NUMBERS = {
 
 
 def players_list(players: list[Player]) -> str:
-    rows = [f"Регистрация. Игроков зарегистрировано: {len(players)}."]
+    rows = [f"Регистрация. Игроков зарегистрировано: {len(players)}." + ('\n' if players else '')]
     for i, player in enumerate(players, start=1):
-        rows.append(f"{i}. {player.name}")
+        rows.append(f"{i}. {player.link}")
     return '\n'.join(rows)
 
 
@@ -32,7 +32,7 @@ def players_rating(players: list[Player]) -> str:
 
     players = sorted(players, reverse=True, key=lambda player: player.points)
     for p, medal in zip(players, medals()):
-        rows.append(f"{medal} {p.name}: {p.points} очков")
+        rows.append(f"{medal} {p.link}: {p.points} очков")
     return '\n'.join(rows)
 
 
