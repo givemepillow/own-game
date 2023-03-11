@@ -62,7 +62,7 @@ class GameLeading(Handler):
             await self.app.bus.postpone_publish(
                 commands.StartRegistration(msg.update),
                 msg.update.origin, msg.update.chat_id,
-                delay=Delay.PAUSE
+                delay=Delay.LITTLE_PAUSE
             )
 
 
@@ -205,22 +205,33 @@ class QuestionSelector(Handler):
             text = f"📌 {current_player.link} выбрал (a) «{theme.title} за {question.cost}»."
 
             delay = Delay.TEXT_QUESTION
-            if question.filename:
+            if not question.filename:
+                await self.app.bus.postpone_publish(
+                    commands.ShowTextQuestion(
+                        msg.update,
+                        f"📄 {game.current_question.question}",
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startswith('image'):
                 delay = Delay.PHOTO_QUESTION
-                text += "\n\n🏞 Это вопрос с картинкой."
                 await self.app.bus.postpone_publish(
                     commands.ShowPhotoQuestion(
                         msg.update,
-                        f"🔍 Внимательно посмотрите на изображение.\n\n"
                         f"📄 {game.current_question.question}",
                         self.app.store.path(question.filename)
                     ),
-                    msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
                 )
-            else:
+            elif question.content_type.startswith('audio'):
+                delay = Delay.PHOTO_QUESTION
                 await self.app.bus.postpone_publish(
-                    commands.ShowTextQuestion(msg.update, f"📄 {game.current_question.question}"),
-                    msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
+                    commands.ShowAudioQuestion(
+                        msg.update,
+                        f"📄 {game.current_question.question}",
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
                 )
 
             await self.app.bus.postpone_publish(
@@ -568,25 +579,33 @@ class SelectionTimeout(Handler):
                    f"🎲 Случайный вопрос:  «{theme.title} за {question.cost}»."
 
             delay = Delay.TEXT_QUESTION
-            if question.filename:
-                text += f"\n\n🏞 Вопрос с картинкой.\n\n"
-                delay = Delay.PHOTO_QUESTION
-                await self.app.bus.postpone_publish(
-                    commands.ShowPhotoQuestion(
-                        msg.update,
-                        f"🔍 Внимательно посмотрите на изображение.\n\n"
-                        f"📄 {game.current_question.question}",
-                        self.app.store.path(question.filename)
-                    ),
-                    msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
-                )
-            else:
+            if not question.filename:
                 await self.app.bus.postpone_publish(
                     commands.ShowTextQuestion(
                         msg.update,
                         f"📄 {game.current_question.question}",
                     ),
-                    msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startwith('image'):
+                delay = Delay.PHOTO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowPhotoQuestion(
+                        msg.update,
+                        f"📄 {game.current_question.question}",
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startwith('audio'):
+                delay = Delay.PHOTO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowAudioQuestion(
+                        msg.update,
+                        f"📄 {game.current_question.question}",
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
                 )
 
             if msg.update.origin == Origin.TELEGRAM:
@@ -663,7 +682,12 @@ class AnswerTimeout(Handler):
 
 class ShowPhotoQuestion(Handler):
     async def handler(self, msg: commands.ShowPhotoQuestion):
-        await self.app.bot(msg.update).send_photo(msg.path, msg.text)
+        await self.app.bot(msg.update).send_photo(msg.path, f"🔍 Внимательно посмотрите на изображение.\n\n" + msg.text)
+
+
+class ShowAudioQuestion(Handler):
+    async def handler(self, msg: commands.ShowAudioQuestion):
+        await self.app.bot(msg.update).send_voice(msg.path, f"777 Прослушайте аудио сообщение.\n\n" + msg.text)
 
 
 class ShowTextQuestion(Handler):
@@ -693,6 +717,7 @@ def setup_handlers(app: Application):
         commands.TelegramRenderQuestions: [TelegramQuestionSelector],
         commands.HideQuestions: [HideQuestions],
         commands.ShowPhotoQuestion: [ShowPhotoQuestion],
+        commands.ShowAudioQuestion: [ShowAudioQuestion],
         commands.ShowTextQuestion: [ShowTextQuestion],
         commands.ShowPress: [ShowPress],
 
