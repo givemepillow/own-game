@@ -235,10 +235,23 @@ class VkAPIAccessor(CleanupCTX):
                     self.logger.error('get_photos_upload_url ' + json.dumps(error, indent=2))
             return None
 
-    async def get_docs_upload_url(self, chat_id: int) -> str | None:
+    async def get_voice_upload_url(self, chat_id: int) -> str | None:
         async with self._session.post(
                 self._url("docs.getMessagesUploadServer"),
                 params=self._params(type='audio_message', peer_id=chat_id)
+        ) as response:
+            match await response.json(content_type=response.content_type, loads=orjson.loads):
+                case {"response": {"upload_url": upload_url}} as data:
+                    self.logger.debug('get_voice_upload_url ' + json.dumps(data, indent=2))
+                    return upload_url
+                case error:
+                    self.logger.error('get_voice_upload_url ' + json.dumps(error, indent=2))
+            return None
+
+    async def get_doc_upload_url(self, chat_id: int) -> str | None:
+        async with self._session.post(
+                self._url("docs.getMessagesUploadServer"),
+                params=self._params(type='doc', peer_id=chat_id)
         ) as response:
             match await response.json(content_type=response.content_type, loads=orjson.loads):
                 case {"response": {"upload_url": upload_url}} as data:
@@ -247,18 +260,6 @@ class VkAPIAccessor(CleanupCTX):
                 case error:
                     self.logger.error('get_docs_upload_url ' + json.dumps(error, indent=2))
             return None
-
-    async def upload_photo(self, upload_url: str, photo_path: str) -> (str | None, str | None, str | None):
-        with open(photo_path, mode='rb') as photo_file:
-            async with self._session.post(upload_url, data=dict(photo=photo_file)) as response:
-                # Иногда ВК присылает 'text/html'
-                match await response.json(content_type=response.content_type, loads=orjson.loads):
-                    case {"hash": photo_hash, "photo": photo, "server": server} as data:
-                        self.logger.debug('_upload_photo: ' + json.dumps(data, indent=2))
-                        return server, photo, photo_hash
-                    case error:
-                        self.logger.error('_upload_photo: ' + json.dumps(error, indent=2))
-                return None, None, None
 
     async def save_photo(self, photo: str, server: str, photo_hash: str) -> str | None:
         response = await self._session.post(
@@ -273,30 +274,55 @@ class VkAPIAccessor(CleanupCTX):
                 self.logger.error('_save_photo: ' + json.dumps(error, indent=2))
         return None
 
-    async def save_doc(self, file: str) -> str | None:
+    async def save_voice(self, file: str) -> str | None:
         response = await self._session.post(
             self._url('docs.save'),
             params=self._params(file=file)
         )
         match await response.json(content_type=response.content_type, loads=orjson.loads):
-            case {"response":{"audio_message": {"id": media_id, "owner_id": owner_id}}} as data:
+            case {"response": {"audio_message": {"id": media_id, "owner_id": owner_id}}} as data:
                 self.logger.debug('save_doc: ' + json.dumps(data, indent=2))
                 return f"doc{owner_id}_{media_id}"
             case error:
                 self.logger.error('save_doc: ' + json.dumps(error, indent=2))
         return None
 
-    async def upload_voice(self, upload_url: str, file_path: str) -> str | None:
+    async def save_doc(self, file: str) -> str | None:
+        response = await self._session.post(
+            self._url('docs.save'),
+            params=self._params(file=file)
+        )
+        match await response.json(content_type=response.content_type, loads=orjson.loads):
+            case {"response": {"doc": {"id": media_id, "owner_id": owner_id}}} as data:
+                self.logger.debug('save_doc: ' + json.dumps(data, indent=2))
+                return f"doc{owner_id}_{media_id}"
+            case error:
+                self.logger.error('save_doc: ' + json.dumps(error, indent=2))
+        return None
+
+    async def upload_doc(self, upload_url: str, file_path: str) -> str | None:
         with open(file_path, mode='rb') as photo_file:
             async with self._session.post(upload_url, data=dict(file=photo_file)) as response:
                 # Иногда ВК присылает 'text/html'
                 match await response.json(content_type=response.content_type, loads=orjson.loads):
                     case {"file": file} as data:
-                        self.logger.debug('upload_voice: ' + json.dumps(data, indent=2))
+                        self.logger.debug('upload_doc: ' + json.dumps(data, indent=2))
                         return file
                     case error:
-                        self.logger.error('upload_voice: ' + json.dumps(error, indent=2))
+                        self.logger.error('upload_doc: ' + json.dumps(error, indent=2))
                 return None
+
+    async def upload_photo(self, upload_url: str, photo_path: str) -> (str | None, str | None, str | None):
+        with open(photo_path, mode='rb') as photo_file:
+            async with self._session.post(upload_url, data=dict(photo=photo_file)) as response:
+                # Иногда ВК присылает 'text/html'
+                match await response.json(content_type=response.content_type, loads=orjson.loads):
+                    case {"hash": photo_hash, "photo": photo, "server": server} as data:
+                        self.logger.debug('_upload_photo: ' + json.dumps(data, indent=2))
+                        return server, photo, photo_hash
+                    case error:
+                        self.logger.error('_upload_photo: ' + json.dumps(error, indent=2))
+                return None, None, None
 
     async def get_message_text(self, chat_id: int, conversation_message_id: int) -> str:
         async with self._session.get(self._url("messages.getByConversationMessageId"), params=self._params(

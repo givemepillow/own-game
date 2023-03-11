@@ -75,9 +75,30 @@ class VkBot(AbstractBot):
         if chat_id is None:
             raise ValueError(f"Not enough params! ({chat_id=})")
 
-        upload_url = await self._api.get_docs_upload_url(chat_id)
-        file = await self._api.upload_voice(upload_url, voice_path)
-        print(f"{file=}")
+        upload_url = await self._api.get_voice_upload_url(chat_id)
+        file = await self._api.upload_doc(upload_url, voice_path)
+
+        attachment = await self._api.save_voice(file)
+
+        return await self._api.send_message(chat_id, text=text, attachment=attachment)
+
+    async def send_video(
+            self,
+            video_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        if self._update is not None:
+            chat_id = chat_id or self._update.chat_id
+
+        if chat_id is None:
+            raise ValueError(f"Not enough params! ({chat_id=})")
+
+        upload_url = await self._api.get_doc_upload_url(chat_id)
+
+        file = await self._api.upload_doc(upload_url, video_path)
+
         attachment = await self._api.save_doc(file)
 
         return await self._api.send_message(chat_id, text=text, attachment=attachment)

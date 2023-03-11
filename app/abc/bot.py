@@ -42,6 +42,16 @@ class AbstractBot(ABC):
         pass
 
     @abstractmethod
+    async def send_video(
+            self,
+            video_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        pass
+
+    @abstractmethod
     async def delete(self, message_id: int | None = None, chat_id: int | None = None):
         pass
 
