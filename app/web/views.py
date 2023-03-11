@@ -35,11 +35,14 @@ class MediaView(View):
             for q in theme.questions:
                 if q.id == question_id:
                     async for field in (await self.request.multipart()):
+                        file = await field.read()
+                        if q.filename:
+                            self.app.store.remove(q.filename)
                         content_type = field.headers['Content-Type']
                         _, ext = content_type.split('/')
                         q.content_type = content_type
                         q.filename = str(uuid4().hex) + "." + ext
-                        self.app.store.save(q.filename, await field.read())
+                        self.app.store.save(q.filename, file)
                         await uow.commit()
                         return json_response(message="Media successfully added!")
         return error_json_response(http_status=404, message="Specific question not found!")
