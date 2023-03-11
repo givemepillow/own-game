@@ -687,7 +687,7 @@ class ShowPhotoQuestion(Handler):
 
 class ShowAudioQuestion(Handler):
     async def handler(self, msg: commands.ShowAudioQuestion):
-        await self.app.bot(msg.update).send_voice(msg.path, f"777 Прослушайте аудио сообщение.\n\n" + msg.text)
+        await self.app.bot(msg.update).send_voice(msg.path, f"🎧 Прослушайте аудио сообщение.\n\n" + msg.text)
 
 
 class ShowTextQuestion(Handler):
