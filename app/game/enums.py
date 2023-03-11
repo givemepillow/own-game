@@ -10,8 +10,9 @@ class GameState(StrEnum):
     QUESTION_SELECTION: str = auto()  # Выбор вопроса.
     WAITING_FOR_PRESS: str = auto()  # Ожидание нажатия на кнопку для ответа на вопрос.
     WAITING_FOR_ANSWER: str = auto()  # Ожидание ответа.
+    WAITING_FOR_CAT_IN_BAG_ANSWER: str = auto()  # Ожидание ответа для вопроса кот в мешке.
+    WAITING_FOR_CAT_CATCHER: str = auto()  # Ждём кому достанется кот в мешке.
     WAITING_FOR_CHECKING: str = auto()  # Ожидание решения ведущего.
-
 
 class QuestionComplexity(IntEnum):
     """
