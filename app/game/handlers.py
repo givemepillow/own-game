@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, randint
 
 from sqlalchemy.exc import IntegrityError
 
@@ -202,7 +202,30 @@ class QuestionSelector(Handler):
 
             await self.app.bus.force_publish(commands.HideQuestions, msg.update.origin, msg.update.chat_id)
 
-            text = f"📌 {current_player.link} выбрал (a) «{theme.title} за {question.cost}»."
+            if is_cat_in_bag := game.is_cat_in_bsg():
+                text = f"🐈🐈‍⬛🐈🐈‍⬛🐈🐈‍⬛🐈🐈‍⬛🐈🐈‍⬛\n\n" \
+                       f"🐱 {current_player.link} вам выпадает кот в мешке!!! "
+            else:
+                text = f"📌 {current_player.link} выбрал (a) «{theme.title} за {question.cost}»."
+
+            if msg.update.origin == Origin.TELEGRAM:
+                await self.app.bot(msg.update).edit(
+                    text,
+                    remove_inline_keyboard=True,
+                    message_id=msg.update.message_id
+                )
+            else:
+                await self.app.bot(msg.update).send(text)
+
+            if is_cat_in_bag:
+                await self.app.bus.postpone_publish(
+                    events.CatInBag(
+                        msg.update,
+                        msg.update.message_id,
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+                return
 
             delay = Delay.TEXT_QUESTION
             if not question.filename:
@@ -248,15 +271,6 @@ class QuestionSelector(Handler):
                 commands.ShowPress(msg.update, f"Кто хочет ответить? 📝\n\n⏱ {Delay.WAIT_PRESS} сек."),
                 msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE + delay
             )
-
-            if msg.update.origin == Origin.TELEGRAM:
-                await self.app.bot(msg.update).edit(
-                    text,
-                    remove_inline_keyboard=True,
-                    message_id=msg.update.message_id
-                )
-            else:
-                await self.app.bot(msg.update).send(text)
 
 
 class ShowPress(Handler):
@@ -311,7 +325,10 @@ class Answer(Handler):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.WAITING_FOR_ANSWER or game.answering_user_id != msg.update.user_id:
+            if not game or game.answering_user_id != msg.update.user_id:
+                return
+
+            if game.state not in (GameState.WAITING_FOR_ANSWER, GameState.WAITING_FOR_CAT_IN_BAG_ANSWER):
                 return
 
             await self.app.bus.cancel(events.WaitingForAnswerTimeout, msg.update.origin, msg.update.chat_id)
@@ -690,6 +707,178 @@ class AnswerTimeout(Handler):
                 )
 
 
+class CatInBagAnswerTimeout(Handler):
+    async def handler(self, msg: events.WaitingForCatInBagAnswerTimeout):
+        async with self.app.store.db() as uow:
+            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+
+            if not game or game.state != GameState.WAITING_FOR_CAT_IN_BAG_ANSWER:
+                return
+
+            if not (player := game.get_answering_player()):
+                return
+
+            game.reject(player)
+
+            await uow.commit()
+
+            message_id = await self.app.bot(msg.update).send(
+                f"⏳ {player.link}, ваше время на ответ истекло.\n\n"
+                f"📉 Вы упускаете кота и теряете "
+                f"{tools.convert_number(game.current_question.cost)} очков.\n\n"
+                f"👉 Правильным ответом было: «{game.current_question.answer}»."
+            )
+            await self.app.bus.postpone_publish(
+                events.QuestionFinished(msg.update, message_id),
+                msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE
+            )
+
+
+class CatInBag(Handler):
+    async def handler(self, msg: events.CatInBag):
+        async with self.app.store.db() as uow:
+            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+
+            if not game or game.state != GameState.WAITING_FOR_PRESS:
+                return
+
+            themes = await uow.themes.list()
+
+            game.get_cat_from_bag(themes)
+
+            await uow.commit()
+
+            current_player = game.get_current_player()
+
+            await self.app.bot(msg.update).edit(
+                f"{current_player.link}, кому достанется кот в мешке?\n\n"
+                f"{tools.players_rating(game.players)}"
+                f"\n\n⏱ {Delay.WAIT_SELECTION}",
+                inline_keyboard=kb.make_players_menu(game.players),
+                message_id=msg.message_id
+            )
+
+            await self.app.bus.postpone_publish(
+                events.WaitingForCatCatcherTimeout(
+                    msg.update, msg.message_id
+                ),
+                msg.update.origin, msg.update.chat_id, delay=Delay.WAIT_SELECTION
+            )
+
+
+class CatchCat(Handler):
+    async def handler(self, msg: commands.GiveCat):
+        async with self.app.store.db() as uow:
+            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+
+            if not game or game.state != GameState.WAITING_FOR_CAT_CATCHER:
+                return
+
+            player = game.give_cat(msg.user_id)
+
+            await uow.commit()
+
+            question = game.current_question
+
+            await self.app.bot(msg.update).edit(
+                f"{player.link}, кот в мешке достался вам!"
+            )
+
+            text = f"📄 {game.current_question.question}" \
+                   f"\n\n{player.link}, ждём вашего ответа." \
+                   f"\n\n⏱ {Delay.WAIT_ANSWER}"
+
+            if not question.filename:
+                delay = Delay.TEXT_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowTextQuestion(
+                        msg.update, text,
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startswith('image'):
+                delay = Delay.PHOTO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowPhotoQuestion(
+                        msg.update, text,
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startswith('audio'):
+                delay = Delay.PHOTO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowAudioQuestion(
+                        msg.update, text,
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+
+            await self.app.bus.postpone_publish(
+                events.WaitingForCatInBagAnswerTimeout(msg.update, msg.update.message_id),
+                msg.update.origin, msg.update.chat_id,
+                delay=Delay.WAIT_ANSWER
+            )
+
+
+class CatchCatTimeout(Handler):
+    async def handler(self, msg: events.WaitingForCatCatcherTimeout):
+        async with self.app.store.db() as uow:
+            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+
+            if not game or game.state != GameState.WAITING_FOR_CAT_CATCHER:
+                return
+
+            player = game.give_cat(choice(game.players).user_id)
+
+            await uow.commit()
+
+            question = game.current_question
+
+            await self.app.bot(msg.update).edit(
+                f"Время вышло!\n\n{player.link}, кот в мешке достался вам!",
+                message_id=msg.message_id
+            )
+
+            text = f"📄 {game.current_question.question}" \
+                   f"\n\n{player.link}, ждём вашего ответа." \
+                   f"\n\n⏱ {Delay.WAIT_ANSWER}"
+
+            if not question.filename:
+                delay = Delay.TEXT_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowTextQuestion(
+                        msg.update, text,
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startswith('image'):
+                delay = Delay.PHOTO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowPhotoQuestion(
+                        msg.update, text,
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+            elif question.content_type.startswith('audio'):
+                delay = Delay.PHOTO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowAudioQuestion(
+                        msg.update, text,
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
+
+            await self.app.bus.postpone_publish(
+                events.WaitingForCatInBagAnswerTimeout(msg.update, msg.update.message_id),
+                msg.update.origin, msg.update.chat_id,
+                delay=Delay.WAIT_ANSWER
+            )
+
+
 class ShowVideoQuestion(Handler):
     async def handler(self, msg: commands.ShowAudioQuestion):
         await self.app.bot(msg.update).send_video(msg.path, f"🎥 Просмотрите видео.\n\n" + msg.text)
@@ -736,6 +925,7 @@ def setup_handlers(app: Application):
         commands.ShowVideoQuestion: [ShowVideoQuestion],
         commands.ShowTextQuestion: [ShowTextQuestion],
         commands.ShowPress: [ShowPress],
+        commands.GiveCat: [CatchCat],
 
         events.QuestionFinished: [NextSelection],
         events.GameFinished: [Results],
@@ -744,5 +934,8 @@ def setup_handlers(app: Application):
         events.WaitingSelectionTimeout: [SelectionTimeout],
         events.WaitingPressTimeout: [PressTimeout],
         events.WaitingForAnswerTimeout: [AnswerTimeout],
-        events.WaitingForCheckingTimeout: [CheckingTimeout]
+        events.WaitingForCheckingTimeout: [CheckingTimeout],
+        events.CatInBag: [CatInBag],
+        events.WaitingForCatInBagAnswerTimeout: [CatInBagAnswerTimeout],
+        events.WaitingForCatCatcherTimeout: [CatchCatTimeout]
     })

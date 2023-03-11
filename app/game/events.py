@@ -17,6 +17,12 @@ class GameFinished(Event):
 
 
 @dataclass(slots=True)
+class CatInBag(Event):
+    update: BotUpdate
+    message_id: int
+
+
+@dataclass(slots=True)
 class WaitingForLeadingTimeout(Event):
     update: BotUpdate
     message_id: int
@@ -48,5 +54,17 @@ class WaitingForAnswerTimeout(Event):
 
 @dataclass(slots=True)
 class WaitingForCheckingTimeout(Event):
+    update: BotUpdate
+    message_id: int
+
+
+@dataclass(slots=True)
+class WaitingForCatInBagAnswerTimeout(Event):
+    update: BotUpdate
+    message_id: int
+
+
+@dataclass(slots=True)
+class WaitingForCatCatcherTimeout(Event):
     update: BotUpdate
     message_id: int

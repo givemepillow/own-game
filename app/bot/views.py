@@ -95,6 +95,12 @@ class NewGroup(BotView):
             )
 
 
+@callback_query(chat_type=ChatType.GROUP, data_type=CallbackType.GIVE_CAT)
+class GiveCat(BotView):
+    async def handle(self, update: BotCallbackQuery):
+        self.app.bus.publish(commands.GiveCat(update, int(update.callback_data.value)))
+
+
 VIEWS = [
     CallbackPlug,
     PlayBotCommand,
@@ -109,5 +115,6 @@ VIEWS = [
     AcceptAnswer,
     RejectAnswer,
     BecomeLeading,
-    NewGroup
+    NewGroup,
+    GiveCat
 ]

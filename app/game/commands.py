@@ -126,3 +126,9 @@ class ShowVideoQuestion(Command):
     update: BotUpdate
     text: str
     path: str
+
+
+@dataclass(slots=True)
+class GiveCat(Command):
+    update: BotCallbackQuery
+    user_id: int
