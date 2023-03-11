@@ -35,4 +35,5 @@ class Delay(IntEnum):
     TEXT_QUESTION = 10
     PHOTO_QUESTION = 15
     AUDIO_QUESTION = 25
+    VIDEO_QUESTION = 45
     LITTLE_PAUSE = 5

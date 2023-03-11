@@ -119,3 +119,10 @@ class ShowAudioQuestion(Command):
     update: BotUpdate
     text: str
     path: str
+
+
+@dataclass(slots=True)
+class ShowVideoQuestion(Command):
+    update: BotUpdate
+    text: str
+    path: str
