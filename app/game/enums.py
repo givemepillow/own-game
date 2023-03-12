@@ -15,6 +15,7 @@ class GameState(StrEnum):
     WAITING_FOR_CAT_IN_BAG_CHECKING: str = auto()  # Ожидание решения ведущего.
     WAITING_FOR_CHECKING: str = auto()  # Ожидание решения ведущего.
 
+
 class QuestionComplexity(IntEnum):
     """
     Сложность вопросов и соответсвующая цена
@@ -34,8 +35,8 @@ class Delay(IntEnum):
     WAIT_ANSWER = 15
     WAIT_CHECKING = 25
     PAUSE = 7
-    TEXT_QUESTION = 10
-    PHOTO_QUESTION = 15
+    TEXT_QUESTION = 12
+    PHOTO_QUESTION = 12
     AUDIO_QUESTION = 25
-    VIDEO_QUESTION = 45
-    LITTLE_PAUSE = 5
+    VIDEO_QUESTION = 30
+    LITTLE_PAUSE = 4

@@ -1,5 +1,4 @@
 from enum import StrEnum, auto
-from typing import Iterable
 
 from app.bot.inline import InlineKeyboard, InlineButton, CallbackData
 from app.game.models import Theme, Question, Player
@@ -28,7 +27,7 @@ def make_registration(current_players_number: int = 0) -> InlineKeyboard | None:
             InlineButton("Играю 🎮", CallbackData(CallbackType.JOIN)),
             InlineButton("Не играю 🚪", CallbackData(CallbackType.CANCEL_JOIN))
         )
-    if current_players_number > 1:
+    if current_players_number > 0:
         keyboard.add(InlineButton("▶️ Начать", CallbackData(CallbackType.START_GAME)))
     return keyboard
 

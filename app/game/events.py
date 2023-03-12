@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from app.abc.message import Event
-from app.bot.updates import BotCallbackQuery, BotUpdate, BotMessage
+from app.bot.updates import BotUpdate
 
 
 @dataclass(slots=True)
@@ -54,12 +54,6 @@ class WaitingForAnswerTimeout(Event):
 
 @dataclass(slots=True)
 class WaitingForCheckingTimeout(Event):
-    update: BotUpdate
-    message_id: int
-
-
-@dataclass(slots=True)
-class WaitingForCatInBagAnswerTimeout(Event):
     update: BotUpdate
     message_id: int
 
