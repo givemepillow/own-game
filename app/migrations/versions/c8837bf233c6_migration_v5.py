@@ -60,7 +60,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
-    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CAT_IN_BAG_ANSWER', 'WAITING_FOR_CAT_CATCHER', 'WAITING_FOR_CHECKING', 'CAT_IN_BAG', name='gamestate'), nullable=False),
+    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CAT_IN_BAG_ANSWER', 'WAITING_FOR_CAT_CATCHER', 'WAITING_FOR_CHECKING', 'CAT_IN_BAG', 'WAITING_FOR_CAT_IN_BAG_CHECKING', name='gamestate'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('selected_questions', postgresql.ARRAY(sa.Integer()), nullable=False),
     sa.Column('cat_taken', sa.Boolean(), nullable=False),
