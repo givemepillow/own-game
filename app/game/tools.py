@@ -44,9 +44,9 @@ def convert_number(points: int):
 def question_delay(game: Game) -> Delay:
     if not game.current_question.filename:
         return Delay.TEXT_QUESTION
-    elif game.current_question.filename.startswith('image'):
+    elif game.current_question.content_type.startswith('image'):
         return Delay.PHOTO_QUESTION
-    elif game.current_question.filename.startswith('audio'):
+    elif game.current_question.content_type.startswith('audio'):
         return Delay.AUDIO_QUESTION
-    elif game.current_question.filename.startswith('video'):
+    elif game.current_question.content_type.startswith('video'):
         return Delay.VIDEO_QUESTION

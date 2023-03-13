@@ -216,7 +216,7 @@ class QuestionSelector(Handler):
                 await self.app.bus.postpone_publish(
                     commands.ShowPress(
                         msg.update,
-                        f"🧐 Кто будет отвечать?\n\n{texts.delay(tools.question_delay(game))}"
+                        f"🧐 Кто будет отвечать?\n\n{texts.delay(Delay.WAIT_PRESS)}"
                     ),
                     msg.update.origin, msg.update.chat_id,
                     delay=tools.question_delay(game) + Delay.PAUSE
@@ -251,7 +251,7 @@ class ShowQuestion(Handler):
                     f"❔ {game.current_question.question}"
                 )
             elif game.current_question.content_type.startswith('video'):
-                await self.app.bot(msg.update).send_voice(
+                await self.app.bot(msg.update).send_video(
                     self.app.store.path(game.current_question.filename),
                     f"🎥 Видео вопрос за {game.current_question.cost}:\n\n"
                     f"❔ {game.current_question.question}"
@@ -594,7 +594,7 @@ class SelectionTimeout(Handler):
             await self.app.bus.postpone_publish(
                 commands.ShowPress(
                     msg.update,
-                    f"🧐 Кто будет отвечать?\n\n{texts.delay(tools.question_delay(game))}"
+                    f"🧐 Кто будет отвечать?\n\n{texts.delay(Delay.WAIT_PRESS)}"
                 ),
                 msg.update.origin, msg.update.chat_id,
                 delay=tools.question_delay(game) + Delay.PAUSE
