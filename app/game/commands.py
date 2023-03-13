@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from app.abc.message import Command
-from app.bot.updates import BotUpdate, BotCallbackQuery, BotMessage
+from app.bot.updates import BotUpdate, BotCallbackQuery
 
 
 @dataclass(slots=True)
@@ -102,27 +102,16 @@ class ShowPress(Command):
 
 
 @dataclass(slots=True)
-class ShowTextQuestion(Command):
-    update: BotUpdate
-    text: str
+class GiveCat(Command):
+    update: BotCallbackQuery
+    user_id: int
 
 
 @dataclass(slots=True)
-class ShowPhotoQuestion(Command):
+class ShowQuestion(Command):
     update: BotUpdate
-    text: str
-    path: str
 
 
 @dataclass(slots=True)
-class ShowAudioQuestion(Command):
+class CatInBagAnswerPrompt(Command):
     update: BotUpdate
-    text: str
-    path: str
-
-
-@dataclass(slots=True)
-class ShowVideoQuestion(Command):
-    update: BotUpdate
-    text: str
-    path: str

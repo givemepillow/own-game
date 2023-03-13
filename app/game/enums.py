@@ -10,6 +10,9 @@ class GameState(StrEnum):
     QUESTION_SELECTION: str = auto()  # Выбор вопроса.
     WAITING_FOR_PRESS: str = auto()  # Ожидание нажатия на кнопку для ответа на вопрос.
     WAITING_FOR_ANSWER: str = auto()  # Ожидание ответа.
+    WAITING_FOR_CAT_IN_BAG_ANSWER: str = auto()  # Ожидание ответа для вопроса кот в мешке.
+    WAITING_FOR_CAT_CATCHER: str = auto()  # Ждём кому достанется кот в мешке.
+    WAITING_FOR_CAT_IN_BAG_CHECKING: str = auto()  # Ожидание решения ведущего.
     WAITING_FOR_CHECKING: str = auto()  # Ожидание решения ведущего.
 
 
@@ -32,8 +35,8 @@ class Delay(IntEnum):
     WAIT_ANSWER = 15
     WAIT_CHECKING = 25
     PAUSE = 7
-    TEXT_QUESTION = 10
-    PHOTO_QUESTION = 15
-    AUDIO_QUESTION = 25
-    VIDEO_QUESTION = 45
-    LITTLE_PAUSE = 5
+    TEXT_QUESTION = 12
+    PHOTO_QUESTION = 10
+    AUDIO_QUESTION = 10
+    VIDEO_QUESTION = 20
+    LITTLE_PAUSE = 4

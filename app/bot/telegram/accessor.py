@@ -189,9 +189,9 @@ class TelegramAPIAccessor(CleanupCTX):
                 message_id=message_id,
                 text=text,
                 parse_mode='HTML',
-                **dict(
-                    reply_markup=self._inline_keyboard_markup(inline_keyboard)
-                ) if inline_keyboard and not remove_inline_keyboard else {}
+                reply_markup=''
+                if remove_inline_keyboard else
+                self._inline_keyboard_markup(inline_keyboard)
             ))
         match await response.json(content_type=response.content_type, loads=orjson.loads):
             case data:

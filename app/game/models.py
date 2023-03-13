@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from random import choice, sample
+from random import choice, sample, randint
 from typing import Optional, NoReturn
 
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -157,13 +157,16 @@ class Game(Base):
     state: Mapped[GameState] = mapped_column(sa.Enum(GameState), nullable=False)
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=sa.func.now(tz='UTC'))
     selected_questions: Mapped[set[int]] = mapped_column(MutableList.as_mutable(ARRAY(sa.Integer)), default=[])
+    cat_taken: Mapped[bool] = mapped_column(default=False)
 
     leading_user_id: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
     current_user_id: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
     answering_user_id: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
 
     current_question_id: Mapped[Optional[Player]] = mapped_column(sa.ForeignKey("questions.id"), nullable=True)
-    current_question: Mapped[Optional[Question]] = relationship(lazy="joined")
+    current_question: Mapped[Optional[Question]] = relationship(
+        lazy="joined", foreign_keys=[current_question_id]
+    )
 
     players: Mapped[list[Player]] = relationship(
         back_populates="game", cascade="all, delete-orphan", lazy='joined', innerjoin=False,
@@ -208,12 +211,36 @@ class Game(Base):
                     self.current_question = q
                     return q, t
 
+    def is_cat_in_bag(self):
+        if self.cat_taken or len(self.selected_questions) <= 1:
+            return False
+        return 0 == randint(0, 10 - len(self.selected_questions))
+
+    def get_cat_from_bag(self, themes: list[themes]):
+        self.state: GameState = GameState.WAITING_FOR_CAT_CATCHER
+        self.current_question = choice(
+            choice([t for t in themes if t not in self.themes]).questions
+        )
+        self.cat_taken: bool = True
+
+    def give_cat(self, user_id: int) -> Player:
+        for p in self.players:
+            if p.user_id == user_id:
+                self.answering_user_id: int = user_id
+                return p
+
+    def wait_answer_for_cat_in_bag(self):
+        self.state: GameState = GameState.WAITING_FOR_CAT_IN_BAG_ANSWER
+
+    def answer(self):
+        if self.state == GameState.WAITING_FOR_CAT_IN_BAG_ANSWER:
+            self.state: GameState = GameState.WAITING_FOR_CAT_IN_BAG_CHECKING
+        else:
+            self.state: GameState = GameState.WAITING_FOR_CHECKING
+
     def press(self, player: Player) -> NoReturn:
         self.state: GameState = GameState.WAITING_FOR_ANSWER
         self.answering_user_id = player.user_id
-
-    def answer(self) -> NoReturn:
-        self.state: GameState = GameState.WAITING_FOR_CHECKING
 
     def accept(self, player: Player) -> NoReturn:
         self.answering_user_id: int | None = None
@@ -227,11 +254,17 @@ class Game(Base):
         return self.get_current_player()
 
     def reject(self, player: Player):
-        self.state: GameState = GameState.WAITING_FOR_PRESS
         self.answering_user_id: int | None = None
-
         player.already_answered = True
         player.points -= self.current_question.cost
+
+        if self.is_all_answered():
+            return
+
+        if self.state in (GameState.WAITING_FOR_CAT_IN_BAG_CHECKING, GameState.WAITING_FOR_CAT_IN_BAG_ANSWER):
+            return
+
+        self.state: GameState = GameState.WAITING_FOR_PRESS
 
     def is_all_answered(self):
         for p in self.players:

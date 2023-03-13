@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from app.abc.message import Event
-from app.bot.updates import BotCallbackQuery, BotUpdate, BotMessage
+from app.bot.updates import BotUpdate
 
 
 @dataclass(slots=True)
@@ -12,6 +12,12 @@ class QuestionFinished(Event):
 
 @dataclass(slots=True)
 class GameFinished(Event):
+    update: BotUpdate
+    message_id: int
+
+
+@dataclass(slots=True)
+class CatInBag(Event):
     update: BotUpdate
     message_id: int
 
@@ -48,5 +54,11 @@ class WaitingForAnswerTimeout(Event):
 
 @dataclass(slots=True)
 class WaitingForCheckingTimeout(Event):
+    update: BotUpdate
+    message_id: int
+
+
+@dataclass(slots=True)
+class WaitingForCatCatcherTimeout(Event):
     update: BotUpdate
     message_id: int

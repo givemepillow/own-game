@@ -101,23 +101,15 @@ class TelegramBot(AbstractBot):
         if not chat_id or not message_id:
             raise ValueError(f"Not enough params! ({chat_id=}, {message_id=})")
 
-        if text is None and photo_path is None:
+        if text is None:
             await self._api.edit_reply_markup(chat_id, message_id, inline_keyboard)
-        elif not photo_path:
+        else:
             await self._api.edit_message_text(
                 chat_id,
                 message_id,
                 text,
                 inline_keyboard,
                 remove_inline_keyboard
-            )
-        else:
-            await self._api.edit_message_media(
-                chat_id,
-                message_id,
-                photo_path,
-                text,
-                inline_keyboard
             )
 
     async def delete(self, message_id: int | None = None, chat_id: int | None = None):

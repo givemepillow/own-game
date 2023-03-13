@@ -1,8 +1,8 @@
-"""migration 4.0
+"""migration v5
 
-Revision ID: a07e84b7ebf7
+Revision ID: c8837bf233c6
 Revises: 
-Create Date: 2023-03-08 16:57:35.397302
+Create Date: 2023-03-12 02:40:07.625444
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'a07e84b7ebf7'
+revision = 'c8837bf233c6'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -60,9 +60,10 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
-    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CHECKING', name='gamestate'), nullable=False),
+    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CAT_IN_BAG_ANSWER', 'WAITING_FOR_CAT_CATCHER', 'WAITING_FOR_CHECKING', 'CAT_IN_BAG', 'WAITING_FOR_CAT_IN_BAG_CHECKING', name='gamestate'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('selected_questions', postgresql.ARRAY(sa.Integer()), nullable=False),
+    sa.Column('cat_taken', sa.Boolean(), nullable=False),
     sa.Column('leading_user_id', sa.BigInteger(), nullable=True),
     sa.Column('current_user_id', sa.BigInteger(), nullable=True),
     sa.Column('answering_user_id', sa.BigInteger(), nullable=True),
