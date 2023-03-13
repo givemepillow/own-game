@@ -151,6 +151,18 @@ class TelegramAPIAccessor(CleanupCTX):
             case data:
                 self.logger.debug('send_photo ' + json.dumps(data, indent=2))
 
+    async def send_video(self, chat_id: int, video_path: str, text: str = ''):
+        with open(video_path, mode='rb') as photo_file:
+            async with self._limiter:
+                response = await self._session.post(
+                    self._url("sendVideo"),
+                    params={"chat_id": chat_id, "caption": text},
+                    data={'video': photo_file}
+                )
+        match await response.json(loads=orjson.loads):
+            case data:
+                self.logger.debug('send_photo ' + json.dumps(data, indent=2))
+
     async def send_voice(self, chat_id: int, audio_path: str, text: str = ''):
         with open(audio_path, mode='rb') as audio_file:
             async with self._limiter:

@@ -233,10 +233,20 @@ class QuestionSelector(Handler):
                     ),
                     msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
                 )
+            elif question.content_type.startswith('video'):
+                delay = Delay.VIDEO_QUESTION
+                await self.app.bus.postpone_publish(
+                    commands.ShowVideoQuestion(
+                        msg.update,
+                        f"📄 {game.current_question.question}",
+                        self.app.store.path(question.filename)
+                    ),
+                    msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
+                )
 
             await self.app.bus.postpone_publish(
                 commands.ShowPress(msg.update, f"Кто хочет ответить? 📝\n\n⏱ {Delay.WAIT_PRESS} сек."),
-                msg.update.origin, msg.update.chat_id, delay=Delay.PAUSE + delay
+                msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE + delay
             )
 
             if msg.update.origin == Origin.TELEGRAM:
@@ -587,7 +597,7 @@ class SelectionTimeout(Handler):
                     ),
                     msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
                 )
-            elif question.content_type.startwith('image'):
+            elif question.content_type.startswith('image'):
                 delay = Delay.PHOTO_QUESTION
                 await self.app.bus.postpone_publish(
                     commands.ShowPhotoQuestion(
@@ -597,7 +607,7 @@ class SelectionTimeout(Handler):
                     ),
                     msg.update.origin, msg.update.chat_id, delay=Delay.LITTLE_PAUSE
                 )
-            elif question.content_type.startwith('audio'):
+            elif question.content_type.startswith('audio'):
                 delay = Delay.PHOTO_QUESTION
                 await self.app.bus.postpone_publish(
                     commands.ShowAudioQuestion(
@@ -680,6 +690,11 @@ class AnswerTimeout(Handler):
                 )
 
 
+class ShowVideoQuestion(Handler):
+    async def handler(self, msg: commands.ShowAudioQuestion):
+        await self.app.bot(msg.update).send_video(msg.path, f"🎥 Просмотрите видео.\n\n" + msg.text)
+
+
 class ShowPhotoQuestion(Handler):
     async def handler(self, msg: commands.ShowPhotoQuestion):
         await self.app.bot(msg.update).send_photo(msg.path, f"🔍 Внимательно посмотрите на изображение.\n\n" + msg.text)
@@ -718,6 +733,7 @@ def setup_handlers(app: Application):
         commands.HideQuestions: [HideQuestions],
         commands.ShowPhotoQuestion: [ShowPhotoQuestion],
         commands.ShowAudioQuestion: [ShowAudioQuestion],
+        commands.ShowVideoQuestion: [ShowVideoQuestion],
         commands.ShowTextQuestion: [ShowTextQuestion],
         commands.ShowPress: [ShowPress],
 
