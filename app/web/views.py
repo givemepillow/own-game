@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from app.game.models import Theme
 from app.utils.responses import json_response, error_json_response
 from app.web.application import View
-from app.web.schemas import NewThemeSchema, ThemeSchema, ResponseThemeSchema, DeleteParams, MediaForm, DeleteMediaSchema
+from app.web.schemas import NewThemeSchema, ThemeSchema, ResponseThemeSchema, DeleteParams, MediaForm, \
+    DeleteMediaSchema, EditSchema, EditParams
 
 
 class ThemeView(View):
@@ -25,6 +26,40 @@ class ThemeView(View):
         async with self.app.store.db() as uow:
             themes = await uow.themes.list()
             return json_response(data=[ThemeSchema().load(t.as_dict()) for t in themes])
+
+    @request_schema(EditSchema)
+    @querystring_schema(EditParams)
+    async def patch(self):
+        theme_id = int(self.request.rel_url.query.get('theme_id'))
+        question_id = self.request.rel_url.query.get('question_id')
+
+        title = self.data.get('title')
+        question = self.data.get('question')
+        answer = self.data.get('answer')
+
+        async with self.app.store.db() as uow:
+            theme = await uow.themes.get(theme_id)
+            if not theme:
+                return error_json_response(http_status=404, message="Specific theme not found!")
+            if title:
+                theme.title = title
+
+            if question_id and (question or answer):
+                question_id = int(question_id)
+                for q in theme.questions:
+                    if q.id == question_id:
+                        if question:
+                            q.question = question
+
+                        if answer:
+                            q.answer = answer
+
+                        await uow.commit()
+                        return json_response(message="Theme successfully updated!")
+                return error_json_response(http_status=404, message="Specific question not found!")
+
+            await uow.commit()
+            return json_response(message="Theme successfully updated!")
 
     @querystring_schema(DeleteParams)
     async def delete(self):

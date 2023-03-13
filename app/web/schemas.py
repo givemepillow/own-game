@@ -57,6 +57,17 @@ class DeleteParams(Schema):
     id = fields.Int(required=True)
 
 
+class EditParams(Schema):
+    theme_id = fields.Int(required=True)
+    question_id = fields.Int(required=False, allow_none=True, missing=None)
+
+
+class EditSchema(Schema):
+    title = fields.Str(required=False, allow_none=True, missing=None)
+    question = fields.Str(required=False, allow_none=True, missing=None)
+    answer = fields.Str(required=False, allow_none=True, missing=None)
+
+
 class MediaForm(Schema):
     pass
 
