@@ -49,6 +49,21 @@ class TelegramBot(AbstractBot):
 
         return await self._api.send_photo(chat_id, photo_path, text)
 
+    async def send_voice(
+            self,
+            voice_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        if self._update is not None:
+            chat_id = chat_id or self._update.chat_id
+
+        if chat_id is None:
+            raise ValueError(f"Not enough params! ({chat_id=})")
+
+        return await self._api.send_voice(chat_id, voice_path, text)
+
     async def edit(
             self,
             text: str | None = None,

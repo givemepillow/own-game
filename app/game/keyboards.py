@@ -16,7 +16,9 @@ class CallbackType(StrEnum):
     BECOME_LEADING: str = auto()
 
 
-def make_registration(current_players_number: int = 0) -> InlineKeyboard:
+def make_registration(current_players_number: int = 0) -> InlineKeyboard | None:
+    if current_players_number > 1:
+        return None
     keyboard = InlineKeyboard()
     keyboard.add(
         InlineButton("Играю 🎮", CallbackData(CallbackType.JOIN)),
@@ -64,11 +66,11 @@ def make_answer_button():
 
 def make_checker():
     keyboard = InlineKeyboard()
-    keyboard.add(InlineButton("Подглядеть ответ 👀", CallbackData(CallbackType.PEEK)))
     keyboard.add(
         InlineButton("✅ Принять", CallbackData(CallbackType.ACCEPT)),
         InlineButton("❌ Отклонить", CallbackData(CallbackType.REJECT))
     )
+    keyboard.add(InlineButton("Подглядеть ответ 👀", CallbackData(CallbackType.PEEK)))
     return keyboard
 
 
