@@ -64,7 +64,6 @@ class CallbackQuerySignature(AbstractSignature):
 
 @dataclass
 class ActionSignature(AbstractSignature):
-    data_type: str
 
     def match(self, callback_query: BotAction) -> bool:
         return super().match(callback_query)

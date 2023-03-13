@@ -22,3 +22,15 @@ class QuestionComplexity(IntEnum):
     MEDIUM = 300
     DIFFICULT = 400
     VERY_DIFFICULT = 500
+
+
+class Delay(IntEnum):
+    WAIT_LEADING = 15
+    REGISTRATION = 30
+    WAIT_SELECTION = 20
+    WAIT_PRESS = 10
+    WAIT_ANSWER = 15
+    WAIT_CHECKING = 25
+    PAUSE = 7
+    TEXT_QUESTION = 10
+    PHOTO_QUESTION = 15

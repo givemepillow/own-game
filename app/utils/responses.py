@@ -4,10 +4,11 @@ from aiohttp.web import json_response as aiohttp_json_response
 from aiohttp.web_response import Response
 
 
-def json_response(data: Any = None, status: str = "ok") -> Response:
+def json_response(data: Any = None, message: str | None = None, status: str = "ok") -> Response:
     return aiohttp_json_response(
         data={
             "status": status,
+            "message": message,
             "data": data or {},
         }
     )
@@ -16,7 +17,7 @@ def json_response(data: Any = None, status: str = "ok") -> Response:
 def error_json_response(
         http_status: int,
         message: str,
-        data: Optional[Any],
+        data: Optional[Any] = None,
         status: str = "error",
 ):
     return aiohttp_json_response(

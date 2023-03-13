@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import yaml
 
@@ -8,6 +9,7 @@ from app.web.application import Application
 
 @dataclass
 class SettingsConfig:
+    media_dir: Path = field(default_factory=lambda p: Path(p).resolve())
     debug: bool = field(default_factory=bool)
 
 

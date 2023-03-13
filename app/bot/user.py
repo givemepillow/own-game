@@ -14,4 +14,4 @@ class BotUser:
 
     @property
     def mention(self):
-        return f"@{self.username}" if self.username else self.name
+        return f"{self.name} @{self.username}" if self.username else self.name
