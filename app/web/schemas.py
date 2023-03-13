@@ -51,3 +51,15 @@ class ResponseThemeSchema(Schema):
     status = fields.Str()
     message = fields.Str()
     data = fields.List(fields.Nested(ThemeSchema()))
+
+
+class DeleteParams(Schema):
+    id = fields.Int(required=True)
+
+
+class MediaForm(Schema):
+    pass
+
+
+class DeleteMediaSchema(Schema):
+    pass
