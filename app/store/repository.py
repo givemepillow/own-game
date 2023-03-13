@@ -63,6 +63,12 @@ class ThemeRepository(AbstractRepository):
     async def list(self) -> list[object]:
         return list((await self.session.execute(select(Theme))).unique().scalars())
 
+    async def delete(self, theme_id: int) -> int:
+        return (await self.session.execute(
+            delete(Theme).
+            where(Theme.id == theme_id)
+        )).rowcount
+
 
 class PlayerRepository(AbstractRepository):
     def add(self, player: Player):

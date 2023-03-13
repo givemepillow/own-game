@@ -29,9 +29,9 @@ class Question(Base):
     filename: Mapped[str] = mapped_column(sa.String(100), nullable=True)
     content_type: Mapped[str] = mapped_column(sa.String(30), nullable=True)
 
-    theme_id: Mapped[int] = mapped_column(sa.ForeignKey("themes.id"))
+    theme_id: Mapped[int] = mapped_column(sa.ForeignKey("themes.id", ondelete="CASCADE"))
     theme: Mapped[Theme] = relationship(
-        back_populates="questions", innerjoin=True
+        back_populates="questions", innerjoin=True,
     )
 
     __table_args__ = (
@@ -80,7 +80,7 @@ class Theme(Base):
 
     questions: Mapped[list[Question]] = relationship(
         back_populates="theme",
-        cascade="all, delete-orphan",
+        cascade="all, delete",
         lazy='joined',
         innerjoin=True
     )

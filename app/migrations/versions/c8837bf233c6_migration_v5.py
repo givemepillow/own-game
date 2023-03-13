@@ -52,7 +52,7 @@ def upgrade() -> None:
     sa.Column('filename', sa.String(length=100), nullable=True),
     sa.Column('content_type', sa.String(length=30), nullable=True),
     sa.Column('theme_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-questions-theme_id-themes')),
+    sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-questions-theme_id-themes'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-questions')),
     sa.UniqueConstraint('theme_id', 'cost', name=op.f('uq-questions-theme_id.cost'))
     )
