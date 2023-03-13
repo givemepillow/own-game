@@ -47,30 +47,22 @@ class ThemeSchema(Schema):
     questions = fields.List(fields.Nested(QuestionSchema()))
 
 
-class ResponseThemeSchema(Schema):
+class ResponseThemesSchema(Schema):
     status = fields.Str()
     message = fields.Str()
     data = fields.List(fields.Nested(ThemeSchema()))
 
 
-class DeleteParams(Schema):
-    id = fields.Int(required=True)
+class ResponseThemeSchema(Schema):
+    status = fields.Str()
+    message = fields.Str()
+    data = fields.Nested(ThemeSchema())
 
 
-class EditParams(Schema):
-    theme_id = fields.Int(required=True)
-    question_id = fields.Int(required=False, allow_none=True, missing=None)
-
-
-class EditSchema(Schema):
-    title = fields.Str(required=False, allow_none=True, missing=None)
+class EditQuestionSchema(Schema):
     question = fields.Str(required=False, allow_none=True, missing=None)
     answer = fields.Str(required=False, allow_none=True, missing=None)
 
 
-class MediaForm(Schema):
-    pass
-
-
-class DeleteMediaSchema(Schema):
-    pass
+class EditThemeSchema(Schema):
+    title = fields.Str(required=True)
