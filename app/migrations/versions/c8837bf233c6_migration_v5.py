@@ -1,8 +1,8 @@
-"""улучшенная модель
+"""migration v5
 
-Revision ID: 5c57f9ff90eb
+Revision ID: c8837bf233c6
 Revises: 
-Create Date: 2023-03-03 03:24:20.619460
+Create Date: 2023-03-12 02:40:07.625444
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '5c57f9ff90eb'
+revision = 'c8837bf233c6'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -25,6 +25,16 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk-admins')),
     sa.UniqueConstraint('email', name=op.f('uq-admins-email'))
     )
+    op.create_table('delayed_messages',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
+    sa.Column('delay', sa.Integer(), nullable=False),
+    sa.Column('chat_id', sa.BigInteger(), nullable=False),
+    sa.Column('data', sa.LargeBinary(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk-delayed_messages'))
+    )
     op.create_table('themes',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=50), nullable=False),
@@ -37,8 +47,10 @@ def upgrade() -> None:
     op.create_table('questions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cost', sa.Integer(), nullable=False),
-    sa.Column('question', sa.String(length=200), nullable=False),
+    sa.Column('question', sa.String(length=500), nullable=False),
     sa.Column('answer', sa.String(length=80), nullable=False),
+    sa.Column('filename', sa.String(length=100), nullable=True),
+    sa.Column('content_type', sa.String(length=30), nullable=True),
     sa.Column('theme_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], name=op.f('fk-questions-theme_id-themes')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk-questions')),
@@ -48,9 +60,10 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
-    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CHECKING', name='gamestate'), nullable=False),
+    sa.Column('state', sa.Enum('WAITING_FOR_LEADING', 'REGISTRATION', 'QUESTION_SELECTION', 'WAITING_FOR_PRESS', 'WAITING_FOR_ANSWER', 'WAITING_FOR_CAT_IN_BAG_ANSWER', 'WAITING_FOR_CAT_CATCHER', 'WAITING_FOR_CHECKING', 'CAT_IN_BAG', 'WAITING_FOR_CAT_IN_BAG_CHECKING', name='gamestate'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('selected_questions', postgresql.ARRAY(sa.Integer()), nullable=False),
+    sa.Column('cat_taken', sa.Boolean(), nullable=False),
     sa.Column('leading_user_id', sa.BigInteger(), nullable=True),
     sa.Column('current_user_id', sa.BigInteger(), nullable=True),
     sa.Column('answering_user_id', sa.BigInteger(), nullable=True),
@@ -71,6 +84,8 @@ def upgrade() -> None:
     sa.Column('origin', sa.Enum('VK', 'TELEGRAM', name='origin'), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('username', sa.String(length=100), nullable=True),
     sa.Column('points', sa.Integer(), nullable=False),
     sa.Column('already_answered', sa.Boolean(), nullable=False),
     sa.Column('game_id', sa.Integer(), nullable=False),
@@ -88,6 +103,7 @@ def downgrade() -> None:
     op.drop_table('games')
     op.drop_table('questions')
     op.drop_table('themes')
+    op.drop_table('delayed_messages')
     op.drop_table('admins')
     op.execute('drop type origin')
     op.execute('drop type gamestate')

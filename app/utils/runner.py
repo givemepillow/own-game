@@ -23,7 +23,7 @@ class Runner:
 
     async def stop(self):
         self._is_running = False
-        await asyncio.wait_for(self._task, timeout=1)
+        await asyncio.wait_for(self._task, timeout=3)
 
     async def run(self):
         try:

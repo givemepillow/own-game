@@ -5,6 +5,12 @@ from app.bot.user import BotUser
 
 
 class AbstractBot(ABC):
+
+    @property
+    @abstractmethod
+    def bot_id(self) -> int:
+        pass
+
     @abstractmethod
     async def send(
             self,
@@ -16,7 +22,37 @@ class AbstractBot(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, chat_id: int | None = None, message_id: int | None = None):
+    async def send_photo(
+            self,
+            photo_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        pass
+
+    @abstractmethod
+    async def send_voice(
+            self,
+            voice_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        pass
+
+    @abstractmethod
+    async def send_video(
+            self,
+            video_path: str,
+            text: str = '',
+            /, *,
+            chat_id: int | None = None
+    ) -> int:
+        pass
+
+    @abstractmethod
+    async def delete(self, message_id: int | None = None, chat_id: int | None = None):
         pass
 
     @abstractmethod

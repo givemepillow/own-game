@@ -4,7 +4,7 @@ from app.store.orm import Base
 import sqlalchemy as sa
 
 
-class Question(Base):
+class Admin(Base):
     __tablename__ = "admins"
 
     id: Mapped[int] = mapped_column(primary_key=True, compare=True)
