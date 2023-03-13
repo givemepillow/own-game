@@ -212,7 +212,7 @@ class Game(Base):
                     return q, t
 
     def is_cat_in_bag(self):
-        if self.cat_taken:
+        if self.cat_taken or len(self.selected_questions) <= 1:
             return False
         return 0 == randint(0, 10 - len(self.selected_questions))
 
