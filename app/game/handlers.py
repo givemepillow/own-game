@@ -6,7 +6,7 @@ from app.abc.handler import Handler
 from app.bot.enums import Origin
 
 from app.game import commands, events, tools, texts
-from app.game.enums import GameState, Delay
+from app.game.enums import GameState, Delay, GameConfig
 from app.game.models import Game, Player
 from app.game import keyboards as kb
 from app.web.application import Application
@@ -47,14 +47,22 @@ class GameLeading(Handler):
             if not game or game.state != GameState.WAITING_FOR_LEADING or game.leading_user_id is not None:
                 return
 
-            await self.app.bus.cancel(events.WaitingForLeadingTimeout, msg.update.origin, msg.update.chat_id)
-
             game.set_leading(msg.update.user_id)
 
             await uow.commit()
 
+            await self.app.bus.cancel(events.WaitingForLeadingTimeout, msg.update.origin, msg.update.chat_id)
+
             user = await self.app.bot(msg.update).get_user()
-            await self.app.bot(msg.update).edit(f"💥 Ведущий нашёлся - {user.mention}.")
+
+            if msg.update.origin == Origin.TELEGRAM:
+                link = f"""<a href="tg://user?id={user.id}">{user.name}</a>"""
+                if user.username:
+                    link += f" @{user.username}"
+            else:
+                link = f"""@id{user.id} ({user.name})"""
+
+            await self.app.bot(msg.update).edit(f"💥 Ведущий нашёлся - {link}.")
 
             await self.app.bus.postpone_publish(
                 commands.StartRegistration(msg.update),
@@ -97,7 +105,7 @@ class GameDestroyer(Handler):
                     f"📊 РЕЙТИНГ ИГРОВОЙ СЕССИИ:\n\n" + tools.players_rating(game.players)
                 )
             else:
-                await self.app.bot(msg.update).send("ИГРА ДОСРОЧНО ЗАВЕРШЕНА!")
+                await self.app.bot(msg.update).send("🔌 ИГРА ДОСРОЧНО ЗАВЕРШЕНА!")
 
 
 class GameJoin(Handler):
@@ -108,6 +116,9 @@ class GameJoin(Handler):
                 game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
                 if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
+                    return
+
+                if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT:
                     return
 
                 user = await self.app.bot(msg.update).get_user()
@@ -161,6 +172,9 @@ class GameStarter(Handler):
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
             if not game or game.state != GameState.REGISTRATION or game.leading_user_id != msg.update.user_id:
+                return
+
+            if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT:
                 return
 
             await self.app.bus.cancel(events.RegistrationTimeout, msg.update.origin, msg.update.chat_id)
@@ -219,7 +233,7 @@ class QuestionSelector(Handler):
                         f"🧐 Кто будет отвечать?\n\n{texts.delay(Delay.WAIT_PRESS)}"
                     ),
                     msg.update.origin, msg.update.chat_id,
-                    delay=tools.question_delay(game) + Delay.PAUSE
+                    delay=question.duration + Delay.PAUSE
                 )
 
             if msg.update.origin == Origin.VK:
@@ -237,24 +251,28 @@ class ShowQuestion(Handler):
                 await self.app.bot(msg.update).send(
                     f"📖 Вопрос за {game.current_question.cost}:\n\n"
                     f"❔ {game.current_question.question}"
+                    f"\n\n{texts.delay(game.current_question.duration)}"
                 )
             elif game.current_question.content_type.startswith('image'):
                 await self.app.bot(msg.update).send_photo(
                     self.app.store.path(game.current_question.filename),
                     f"🖼 Вопрос с картинкой за {game.current_question.cost}:\n\n"
                     f"❔ {game.current_question.question}"
+                    f"\n\n{texts.delay(game.current_question.duration)}"
                 )
             elif game.current_question.content_type.startswith('audio'):
                 await self.app.bot(msg.update).send_voice(
                     self.app.store.path(game.current_question.filename),
                     f"🎧 Аудио вопрос за {game.current_question.cost}:\n\n"
                     f"❔ {game.current_question.question}"
+                    f"\n\n{texts.delay(game.current_question.duration)}"
                 )
             elif game.current_question.content_type.startswith('video'):
                 await self.app.bot(msg.update).send_video(
                     self.app.store.path(game.current_question.filename),
                     f"🎥 Видео вопрос за {game.current_question.cost}:\n\n"
                     f"❔ {game.current_question.question}"
+                    f"\n\n{texts.delay(game.current_question.duration)}"
                 )
 
 
@@ -441,7 +459,7 @@ class NextSelection(Handler):
                 message_id=msg.message_id
             )
 
-            text = f"{current_player.mention}, выбирайте вопрос.\n\n{texts.delay(Delay.WAIT_SELECTION)}"
+            text = f"{current_player.link}, выбирайте вопрос.\n\n{texts.delay(Delay.WAIT_SELECTION)}"
             if msg.update.origin == Origin.TELEGRAM:
                 await self.app.bus.postpone_publish(
                     commands.TelegramRenderQuestions(msg.update, text, msg.message_id),
@@ -597,7 +615,7 @@ class SelectionTimeout(Handler):
                     f"🧐 Кто будет отвечать?\n\n{texts.delay(Delay.WAIT_PRESS)}"
                 ),
                 msg.update.origin, msg.update.chat_id,
-                delay=tools.question_delay(game) + Delay.PAUSE
+                delay=question.duration + Delay.LITTLE_PAUSE
             )
 
             if msg.update.origin == Origin.TELEGRAM:
@@ -684,10 +702,11 @@ class CatInBag(Handler):
             current_player = game.get_current_player()
 
             await self.app.bot(msg.update).edit(
-                f"{current_player.link}, кому достанется кот в мешке?\n\n"
-                f"{tools.players_rating(game.players)}"
+                f"{current_player.link}, кому достанется кот в мешке?"
                 f"\n\n{texts.delay(Delay.WAIT_SELECTION)}",
-                inline_keyboard=kb.make_players_menu(game.players),
+                inline_keyboard=kb.make_players_menu([
+                    p for p in game.players if p.user_id != game.current_user_id
+                ]),
                 message_id=msg.message_id
             )
 
@@ -711,12 +730,17 @@ class GiveCat(Handler):
 
             await uow.commit()
 
+            await self.app.bus.cancel(
+                events.WaitingForCatCatcherTimeout,
+                msg.update.origin, msg.update.chat_id
+            )
+
             theme = await uow.themes.get(game.current_question.theme_id)
 
             current_player = game.get_current_player()
 
             await self.app.bot(msg.update).edit(
-                f"{player.link}, {current_player.link} отдал кота в мешке вам!"
+                f"{player.mention}, {current_player.link} отдал кота в мешке вам!"
                 f"\n\n«{theme.title} за {game.current_question.cost}»"
             )
 
@@ -729,7 +753,7 @@ class GiveCat(Handler):
             await self.app.bus.postpone_publish(
                 commands.CatInBagAnswerPrompt(msg.update),
                 msg.update.origin, msg.update.chat_id,
-                delay=Delay.PAUSE
+                delay=Delay.LITTLE_PAUSE + game.current_question.duration
             )
 
 
@@ -741,14 +765,16 @@ class CatchCatTimeout(Handler):
             if not game or game.state != GameState.WAITING_FOR_CAT_CATCHER:
                 return
 
-            player = game.give_cat(choice(game.players).user_id)
+            player = game.give_cat(choice([
+                p for p in game.players if p.user_id != game.current_user_id
+            ]).user_id)
 
             await uow.commit()
 
             theme = await uow.themes.get(game.current_question.theme_id)
 
             await self.app.bot(msg.update).edit(
-                f"Время вышло!\n\n{player.link}, кот в мешке достался вам!"
+                f"Время вышло!\n\n{player.mention}, кот в мешке достался вам!"
                 f"\n\n«{theme.title} за {game.current_question.cost}»",
                 message_id=msg.message_id
             )
@@ -762,7 +788,7 @@ class CatchCatTimeout(Handler):
             await self.app.bus.postpone_publish(
                 commands.CatInBagAnswerPrompt(msg.update),
                 msg.update.origin, msg.update.chat_id,
-                delay=Delay.PAUSE
+                delay=Delay.LITTLE_PAUSE + game.current_question.duration
             )
 
 
@@ -781,13 +807,13 @@ class CatInBagAnswerPrompt(Handler):
             player = game.get_answering_player()
 
             message_id = await self.app.bot(msg.update).send(
-                f"{player.link}, кот ждёт ваш ответ:\n\n{texts.delay(tools.question_delay(game) + Delay.WAIT_ANSWER)}"
+                f"{player.link}, кот ждёт ваш ответ:\n\n{texts.delay(Delay.WAIT_ANSWER)}"
             )
 
             await self.app.bus.postpone_publish(
                 events.WaitingForAnswerTimeout(msg.update, message_id),
                 msg.update.origin, msg.update.chat_id,
-                delay=tools.question_delay(game) + Delay.WAIT_ANSWER - Delay.PAUSE + Delay.LITTLE_PAUSE
+                delay=Delay.WAIT_ANSWER
             )
 
 

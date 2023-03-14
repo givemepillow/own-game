@@ -125,13 +125,14 @@ class QuestionView(View):
 
         question = self.data.get('question')
         answer = self.data.get('answer')
+        duration = self.data.get('duration')
 
         async with self.app.store.db() as uow:
             theme = await uow.themes.get(theme_id)
             if not theme:
                 return error_json_response(http_status=404, message="Specific theme not found!")
 
-            if question_id and (question or answer):
+            if question_id and (question or answer or duration):
                 question_id = int(question_id)
                 for q in theme.questions:
                     if q.id == question_id:
@@ -141,7 +142,10 @@ class QuestionView(View):
                         if answer:
                             q.answer = answer
 
+                        if duration:
+                            q.duration = duration
+
                         await uow.commit()
                         return json_response(message="Theme successfully updated!")
-                    
+
             return error_json_response(http_status=404, message="Specific question not found!")

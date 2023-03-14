@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
 
 from app.bot.enums import Origin
-from app.game.enums import GameState, QuestionComplexity
+from app.game.enums import GameState, QuestionComplexity, GameConfig
 import sqlalchemy as sa
 
 from sqlalchemy.orm import Mapped
@@ -26,6 +26,7 @@ class Question(Base):
     cost: Mapped[int] = mapped_column(nullable=False)
     question: Mapped[str] = mapped_column(sa.String(500), nullable=False)
     answer: Mapped[str] = mapped_column(sa.String(80), nullable=False)
+    duration: Mapped[int] = mapped_column(nullable=True, default=15)
     filename: Mapped[str] = mapped_column(sa.String(100), nullable=True)
     content_type: Mapped[str] = mapped_column(sa.String(30), nullable=True)
 
@@ -51,9 +52,10 @@ class Question(Base):
         return self.cost < other.cost
 
     @classmethod
-    def from_dict(cls, question: str, complexity: QuestionComplexity, answer: str, **_):
+    def from_dict(cls, question: str, complexity: QuestionComplexity, answer: str, duration: int, **_):
         return cls(
             question=question,
+            duration=duration,
             cost=QuestionComplexity(complexity).value,
             answer=answer
         )
@@ -126,7 +128,7 @@ class Player(Base):
 
     @property
     def mention(self) -> str:
-        return f"{self.link} @{self.username}" if self.username else self.name
+        return f"{self.link}" + f" @{self.username}" if self.username else ''
 
     @property
     def link(self):
@@ -283,7 +285,7 @@ class Game(Base):
                 return p
 
     def any_questions(self) -> bool:
-        return len(self.selected_questions) < 10
+        return len(self.selected_questions) < 5 * GameConfig.GAME_THEMES_COUNT
 
     def finish(self):
         self.themes.clear()

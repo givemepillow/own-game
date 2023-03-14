@@ -1,6 +1,7 @@
 from enum import StrEnum, auto
 
 from app.bot.inline import InlineKeyboard, InlineButton, CallbackData
+from app.game.enums import GameConfig
 from app.game.models import Theme, Question, Player
 
 
@@ -20,14 +21,14 @@ class CallbackType(StrEnum):
 
 def make_registration(current_players_number: int = 0) -> InlineKeyboard | None:
     keyboard = InlineKeyboard()
-    if current_players_number > 9:
+    if current_players_number >= GameConfig.MAX_PLAYERS_COUNT:
         keyboard.add(InlineButton("Не играю 🚪", CallbackData(CallbackType.CANCEL_JOIN)))
     else:
         keyboard.add(
             InlineButton("Играю 🎮", CallbackData(CallbackType.JOIN)),
             InlineButton("Не играю 🚪", CallbackData(CallbackType.CANCEL_JOIN))
         )
-    if current_players_number > 0:
+    if current_players_number >= GameConfig.MIN_PLAYERS_COUNT:
         keyboard.add(InlineButton("▶️ Начать", CallbackData(CallbackType.START_GAME)))
     return keyboard
 
@@ -87,18 +88,9 @@ def make_players_menu(players: list[Player]):
     keyboard = InlineKeyboard()
     queue = players.copy()
     while queue:
-        p1 = queue.pop()
-        b1 = InlineButton(
-            f"{p1.name}",
-            CallbackData(CallbackType.GIVE_CAT, f"{p1.user_id}")
-        )
-        if queue:
-            p2 = queue.pop()
-            b2 = InlineButton(
-                f"{p2.name}",
-                CallbackData(CallbackType.GIVE_CAT, f"{p2.user_id}")
-            )
-            keyboard.add(b1, b2)
-        else:
-            keyboard.add(b1)
+        player = queue.pop()
+        keyboard.add(InlineButton(
+            f"{player.name} (очки: {player.points})",
+            CallbackData(CallbackType.GIVE_CAT, f"{player.user_id}")
+        ))
     return keyboard

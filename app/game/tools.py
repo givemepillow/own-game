@@ -1,5 +1,4 @@
-from app.game.enums import Delay
-from app.game.models import Player, Game
+from app.game.models import Player
 
 NUMBERS = {
     '0': '0️⃣',
@@ -39,14 +38,3 @@ def players_rating(players: list[Player]) -> str:
 
 def convert_number(points: int):
     return ''.join((NUMBERS[p] for p in str(points)))
-
-
-def question_delay(game: Game) -> Delay:
-    if not game.current_question.filename:
-        return Delay.TEXT_QUESTION
-    elif game.current_question.content_type.startswith('image'):
-        return Delay.PHOTO_QUESTION
-    elif game.current_question.content_type.startswith('audio'):
-        return Delay.AUDIO_QUESTION
-    elif game.current_question.content_type.startswith('video'):
-        return Delay.VIDEO_QUESTION

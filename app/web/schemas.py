@@ -8,6 +8,7 @@ class NewQuestionSchema(Schema):
     question = fields.Str(required=True)
     complexity = fields.Enum(QuestionComplexity)
     answer = fields.Str(required=True)
+    duration = fields.Int(required=True)
 
     @validates("answer")
     def validate_answer(self, answers: list[dict]):
@@ -34,6 +35,7 @@ class QuestionSchema(Schema):
     question = fields.Str()
     cost = fields.Int()
     answer = fields.Str()
+    duration = fields.Int()
     filename = fields.Str(allow_none=True, missing=None)
     content_type = fields.Str(allow_none=True, missing=None)
 
@@ -62,6 +64,12 @@ class ResponseThemeSchema(Schema):
 class EditQuestionSchema(Schema):
     question = fields.Str(required=False, allow_none=True, missing=None)
     answer = fields.Str(required=False, allow_none=True, missing=None)
+    duration = fields.Int(required=False, allow_none=True, missing=None)
+
+    @validates("duration")
+    def validate_answer(self, duration: int | None):
+        if duration is not None and not (60 >= duration >= 5):
+            raise ValidationError("question duration should be between 5 and 60")
 
 
 class EditThemeSchema(Schema):
