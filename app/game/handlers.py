@@ -131,7 +131,7 @@ class GameJoin(Handler):
                     origin=msg.update.origin,
                     user_id=msg.update.user_id,
                     chat_id=msg.update.chat_id,
-                    name=user.name,
+                    name=user.name[:99],
                     username=user.username
                 ))
 
