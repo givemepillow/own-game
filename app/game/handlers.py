@@ -79,7 +79,7 @@ class GameRegistration(Handler):
     async def handler(self, msg: commands.StartRegistration):
         await self.app.bot(msg.update).edit(
             tools.players_list([]) + f"\n\n{texts.delay(Delay.REGISTRATION)}",
-            inline_keyboard=kb.make_registration()
+            inline_keyboard=kb.make_registration(limit=GameConfig.MAX_PLAYERS_COUNT(msg.update.origin))
         )
         await self.app.bus.postpone_publish(
             events.RegistrationTimeout(msg.update, msg.update.message_id),
@@ -122,7 +122,7 @@ class GameJoin(Handler):
                 if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
                     return
 
-                if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT:
+                if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT(msg.update.origin):
                     return
 
                 user = await self.app.bot(msg.update).get_user()
@@ -139,7 +139,10 @@ class GameJoin(Handler):
 
                 await self.app.bot(msg.update).edit(
                     tools.players_list(game.players) + f"\n\n{texts.delay(Delay.REGISTRATION)}",
-                    inline_keyboard=kb.make_registration(len(game.players))
+                    inline_keyboard=kb.make_registration(
+                        len(game.players),
+                        limit=GameConfig.MAX_PLAYERS_COUNT(msg.update.origin)
+                    )
                 )
 
         except IntegrityError as e:
@@ -166,7 +169,10 @@ class GameCancelJoin(Handler):
 
             await self.app.bot(msg.update).edit(
                 tools.players_list(game.players) + f"\n\n{texts.delay(Delay.REGISTRATION)}",
-                inline_keyboard=kb.make_registration(len(game.players))
+                inline_keyboard=kb.make_registration(
+                    len(game.players),
+                    limit=GameConfig.MAX_PLAYERS_COUNT(msg.update.origin)
+                )
             )
 
 
@@ -178,7 +184,7 @@ class GameStarter(Handler):
             if not game or game.state != GameState.REGISTRATION or game.leading_user_id != msg.update.user_id:
                 return
 
-            if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT:
+            if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT(msg.update.origin):
                 return
 
             await self.app.bus.cancel(events.RegistrationTimeout, msg.update.origin, msg.update.chat_id)

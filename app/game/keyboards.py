@@ -19,9 +19,9 @@ class CallbackType(StrEnum):
     PICK_UP_CAT: str = auto()
 
 
-def make_registration(current_players_number: int = 0) -> InlineKeyboard | None:
+def make_registration(current_players_number: int = 0, limit: int = 7) -> InlineKeyboard | None:
     keyboard = InlineKeyboard()
-    if current_players_number >= GameConfig.MAX_PLAYERS_COUNT:
+    if current_players_number >= limit:
         keyboard.add(InlineButton("Не играю 🚪", CallbackData(CallbackType.CANCEL_JOIN)))
     else:
         keyboard.add(

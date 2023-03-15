@@ -1,5 +1,7 @@
 from enum import StrEnum, auto, IntEnum
 
+from app.bot.enums import Origin
+
 
 class GameState(StrEnum):
     """
@@ -29,7 +31,7 @@ class QuestionComplexity(IntEnum):
 
 class Delay(IntEnum):
     WAIT_LEADING = 15
-    REGISTRATION = 30
+    REGISTRATION = 45
     WAIT_SELECTION = 20
     WAIT_PRESS = 20
     WAIT_ANSWER = 15
@@ -40,5 +42,12 @@ class Delay(IntEnum):
 
 class GameConfig(IntEnum):
     MIN_PLAYERS_COUNT = 2
-    MAX_PLAYERS_COUNT = 6
+    MAX_VK_PLAYERS_COUNT = 7
+    MAX_TELEGRAM_PLAYERS_COUNT = 11
     GAME_THEMES_COUNT = 2
+
+    @classmethod
+    def MAX_PLAYERS_COUNT(cls, origin: Origin):  # noqa
+        if origin == Origin.VK:
+            return cls.MAX_VK_PLAYERS_COUNT
+        return cls.MAX_TELEGRAM_PLAYERS_COUNT
