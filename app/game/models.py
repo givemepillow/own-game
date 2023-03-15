@@ -66,6 +66,7 @@ class Question(Base):
             "cost": self.cost,
             "question": self.question,
             "answer": self.answer,
+            "duration": self.duration,
             "filename": self.filename,
             "content_type": self.content_type
         }
