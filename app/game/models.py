@@ -128,7 +128,10 @@ class Player(Base):
 
     @property
     def mention(self) -> str:
-        return f"{self.link}" + f" @{self.username}" if self.username else ''
+        link = f"{self.link}"
+        if self.username:
+            link += f" @{self.username}"
+        return link
 
     @property
     def link(self):
