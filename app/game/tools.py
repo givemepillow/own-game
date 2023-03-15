@@ -25,9 +25,9 @@ def players_rating(players: list[Player]) -> str:
     rows = []
 
     def medals():
+        for m in '🥇🥈🥉':
+            yield m
         while True:
-            for m in '🥇🥈🥉':
-                yield m
             yield '🎗'
 
     players = sorted(players, reverse=True, key=lambda player: player.points)
