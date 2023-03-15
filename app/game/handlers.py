@@ -1,3 +1,4 @@
+import asyncio
 from random import choice
 
 from sqlalchemy.exc import IntegrityError
@@ -40,35 +41,38 @@ class GameCreator(Handler):
 
 
 class GameLeading(Handler):
+    lock = asyncio.Lock()
+
     async def handler(self, msg: commands.SetLeading):
-        async with self.app.store.db() as uow:
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+        async with self.lock:
+            async with self.app.store.db() as uow:
+                game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.WAITING_FOR_LEADING or game.leading_user_id is not None:
-                return
+                if not game or game.state != GameState.WAITING_FOR_LEADING or game.leading_user_id is not None:
+                    return
 
-            game.set_leading(msg.update.user_id)
+                game.set_leading(msg.update.user_id)
 
-            await uow.commit()
+                await uow.commit()
 
-            await self.app.bus.cancel(events.WaitingForLeadingTimeout, msg.update.origin, msg.update.chat_id)
+                await self.app.bus.cancel(events.WaitingForLeadingTimeout, msg.update.origin, msg.update.chat_id)
 
-            user = await self.app.bot(msg.update).get_user()
+                user = await self.app.bot(msg.update).get_user()
 
-            if msg.update.origin == Origin.TELEGRAM:
-                link = f"""<a href="tg://user?id={user.id}">{user.name}</a>"""
-                if user.username:
-                    link += f" @{user.username}"
-            else:
-                link = f"""@id{user.id} ({user.name})"""
+                if msg.update.origin == Origin.TELEGRAM:
+                    link = f"""<a href="tg://user?id={user.id}">{user.name}</a>"""
+                    if user.username:
+                        link += f" @{user.username}"
+                else:
+                    link = f"""@id{user.id} ({user.name})"""
 
-            await self.app.bot(msg.update).edit(f"💥 Ведущий нашёлся - {link}.")
+                await self.app.bot(msg.update).edit(f"💥 Ведущий нашёлся - {link}.")
 
-            await self.app.bus.postpone_publish(
-                commands.StartRegistration(msg.update),
-                msg.update.origin, msg.update.chat_id,
-                delay=Delay.LITTLE_PAUSE
-            )
+                await self.app.bus.postpone_publish(
+                    commands.StartRegistration(msg.update),
+                    msg.update.origin, msg.update.chat_id,
+                    delay=Delay.LITTLE_PAUSE
+                )
 
 
 class GameRegistration(Handler):
@@ -288,32 +292,39 @@ class ShowPress(Handler):
 
 
 class PressButton(Handler):
+    lock = asyncio.Lock()
+
     async def handler(self, msg: commands.SelectQuestion):
-        bot = self.app.bot(msg.update)
-        async with self.app.store.db() as uow:
-            player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
+        async with self.lock:
+            async with self.app.store.db() as uow:
+                player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
 
-            if player is None or player.already_answered:
-                return
+                if player is None or player.already_answered:
+                    return
 
-            game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+                game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-            if not game or game.state != GameState.WAITING_FOR_PRESS:
-                return
+                if not game or game.state != GameState.WAITING_FOR_PRESS:
+                    return
 
-            await self.app.bus.cancel(events.WaitingPressTimeout, msg.update.origin, msg.update.chat_id)
+                game.press(player)
 
-            game.press(player)
+                await uow.commit()
 
-            await uow.commit()
+                await self.app.bus.cancel(
+                    events.WaitingPressTimeout,
+                    msg.update.origin, msg.update.chat_id
+                )
 
-            await bot.edit(f"🚀 {player.mention}, вы всех опередили! Отвечайте.\n\n{texts.delay(Delay.WAIT_ANSWER)}")
+                await self.app.bot(msg.update).edit(
+                    f"🚀 {player.mention}, вы всех опередили! Отвечайте."
+                    f"\n\n{texts.delay(Delay.WAIT_ANSWER)}")
 
-            await self.app.bus.postpone_publish(
-                events.WaitingForAnswerTimeout(msg.update, msg.update.message_id),
-                msg.update.origin, msg.update.chat_id,
-                delay=Delay.WAIT_ANSWER
-            )
+                await self.app.bus.postpone_publish(
+                    events.WaitingForAnswerTimeout(msg.update, msg.update.message_id),
+                    msg.update.origin, msg.update.chat_id,
+                    delay=Delay.WAIT_ANSWER
+                )
 
 
 class Answer(Handler):
