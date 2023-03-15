@@ -301,6 +301,8 @@ class PressButton(Handler):
     lock = asyncio.Lock()
 
     async def handler(self, msg: commands.SelectQuestion):
+        if self.lock.locked():
+            return
         async with self.lock:
             async with self.app.store.db() as uow:
                 player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
