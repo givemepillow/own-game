@@ -5,7 +5,6 @@ from typing import Iterable
 
 import orjson as orjson
 from aiohttp import ClientSession, ClientConnectorError
-from aiolimiter import AsyncLimiter
 
 from app.bot.updates import BotUpdate
 from app.bot.inline import InlineKeyboard
@@ -15,29 +14,6 @@ from app.bot.user import BotUser
 from app.utils.runner import Runner
 
 from app.abc.cleanup_ctx import CleanupCTX
-
-from collections import OrderedDict
-
-
-class Limiter:
-
-    def __init__(self, capacity: int):
-        self.cache = OrderedDict()
-        self.capacity = capacity
-
-    def __getitem__(self, chat_id: int) -> AsyncLimiter:
-        if chat_id not in self.cache:
-            return self._put(chat_id, AsyncLimiter(19))
-        else:
-            self.cache.move_to_end(chat_id)
-            return self.cache[chat_id]
-
-    def _put(self, chat_id: int, limiter: AsyncLimiter) -> AsyncLimiter:
-        self.cache[chat_id] = limiter
-        self.cache.move_to_end(chat_id)
-        if len(self.cache) > self.capacity:
-            self.cache.popitem(last=False)
-        return limiter
 
 
 class TelegramAPIAccessor(CleanupCTX):
@@ -52,7 +28,6 @@ class TelegramAPIAccessor(CleanupCTX):
         self._timeout = 25  # seconds
         self._limit = 50
         self._offset = 0
-        self._limiter = Limiter(100)
 
     @property
     def bot_id(self):
@@ -111,14 +86,13 @@ class TelegramAPIAccessor(CleanupCTX):
             message_id: int,
             inline_keyboard: InlineKeyboard | None = None
     ):
-        async with self._limiter[chat_id]:
-            response = await self._session.get(self._url("editMessageReplyMarkup"), params={
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "reply_markup": self._inline_keyboard_markup(inline_keyboard)
-            })
-            data = await response.json(loads=orjson.loads)
-            self.logger.debug('edit_reply_markup ' + json.dumps(data, indent=2))
+        response = await self._session.get(self._url("editMessageReplyMarkup"), params={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "reply_markup": self._inline_keyboard_markup(inline_keyboard)
+        })
+        data = await response.json(loads=orjson.loads)
+        self.logger.debug('edit_reply_markup ' + json.dumps(data, indent=2))
 
     async def answer_callback_query(self, callback_query_id: str, text: str = ''):
         response = await self._session.get(self._url("answerCallbackQuery"), params={
@@ -136,15 +110,14 @@ class TelegramAPIAccessor(CleanupCTX):
             text: str,
             inline_keyboard: InlineKeyboard | None = None
     ) -> int | None:
-        async with self._limiter[chat_id]:
-            response = await self._session.get(url=self._url("sendMessage"), params=dict(
-                chat_id=chat_id,
-                text=text,
-                parse_mode='HTML',
-                **dict(
-                    reply_markup=self._inline_keyboard_markup(inline_keyboard)
-                ) if inline_keyboard else {}
-            ))
+        response = await self._session.get(url=self._url("sendMessage"), params=dict(
+            chat_id=chat_id,
+            text=text,
+            parse_mode='HTML',
+            **dict(
+                reply_markup=self._inline_keyboard_markup(inline_keyboard)
+            ) if inline_keyboard else {}
+        ))
         match await response.json(loads=orjson.loads):
             case {"ok": False, "error_code": 429, "parameters": {
                 "retry_after": retry_after
@@ -161,34 +134,31 @@ class TelegramAPIAccessor(CleanupCTX):
 
     async def send_photo(self, chat_id: int, photo_path: str, text: str = ''):
         with open(photo_path, mode='rb') as photo_file:
-            async with self._limiter[chat_id]:
-                response = await self._session.post(
-                    self._url("sendPhoto"),
-                    params={"chat_id": chat_id, "caption": text},
-                    data={'photo': photo_file}
-                )
+            response = await self._session.post(
+                self._url("sendPhoto"),
+                params={"chat_id": chat_id, "caption": text},
+                data={'photo': photo_file}
+            )
         data = await response.json(loads=orjson.loads)
         self.logger.debug('send_photo ' + json.dumps(data, indent=2))
 
     async def send_video(self, chat_id: int, video_path: str, text: str = ''):
         with open(video_path, mode='rb') as photo_file:
-            async with self._limiter[chat_id]:
-                response = await self._session.post(
-                    self._url("sendVideo"),
-                    params={"chat_id": chat_id, "caption": text},
-                    data={'video': photo_file}
-                )
+            response = await self._session.post(
+                self._url("sendVideo"),
+                params={"chat_id": chat_id, "caption": text},
+                data={'video': photo_file}
+            )
         data = await response.json(loads=orjson.loads)
         self.logger.debug('send_photo ' + json.dumps(data, indent=2))
 
     async def send_voice(self, chat_id: int, audio_path: str, text: str = ''):
         with open(audio_path, mode='rb') as audio_file:
-            async with self._limiter[chat_id]:
-                response = await self._session.post(
-                    self._url("sendVoice"),
-                    params={"chat_id": chat_id, "caption": text},
-                    data={'voice': audio_file}
-                )
+            response = await self._session.post(
+                self._url("sendVoice"),
+                params={"chat_id": chat_id, "caption": text},
+                data={'voice': audio_file}
+            )
         data = await response.json(loads=orjson.loads)
         self.logger.debug('send_voice ' + json.dumps(data, indent=2))
 
@@ -200,28 +170,26 @@ class TelegramAPIAccessor(CleanupCTX):
             inline_keyboard: InlineKeyboard | None = None,
             remove_inline_keyboard: bool = False
     ):
-        async with self._limiter[chat_id]:
-            response = await self._session.get(self._url("editMessageText"), params=dict(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=text,
-                parse_mode='HTML',
-                reply_markup=''
-                if remove_inline_keyboard else
-                self._inline_keyboard_markup(inline_keyboard)
-            ))
-            data = await response.json(content_type=response.content_type, loads=orjson.loads)
-            self.logger.debug('edit_message_text ' + json.dumps(data, indent=2))
+        response = await self._session.get(self._url("editMessageText"), params=dict(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            parse_mode='HTML',
+            reply_markup=''
+            if remove_inline_keyboard else
+            self._inline_keyboard_markup(inline_keyboard)
+        ))
+        data = await response.json(content_type=response.content_type, loads=orjson.loads)
+        self.logger.debug('edit_message_text ' + json.dumps(data, indent=2))
 
     async def delete_message(self, chat_id: int, message_id: int):
-        async with self._limiter[chat_id]:
-            response = await self._session.get(
-                self._url("deleteMessage"),
-                params=dict(
-                    message_id=message_id,
-                    chat_id=chat_id
-                )
+        response = await self._session.get(
+            self._url("deleteMessage"),
+            params=dict(
+                message_id=message_id,
+                chat_id=chat_id
             )
+        )
         data = await response.json(content_type=response.content_type, loads=orjson.loads)
         self.logger.debug('delete_message ' + json.dumps(data, indent=2))
 

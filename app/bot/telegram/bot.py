@@ -1,3 +1,5 @@
+from aiolimiter import AsyncLimiter
+
 from app.abc.bot import AbstractBot
 from app.bot.telegram.accessor import TelegramAPIAccessor
 from app.bot.inline import InlineKeyboard
@@ -7,9 +9,10 @@ from app.bot.user import BotUser
 
 class TelegramBot(AbstractBot):
 
-    def __init__(self, telegram_api: TelegramAPIAccessor, update: BotUpdate | None = None):
+    def __init__(self, telegram_api: TelegramAPIAccessor, update: BotUpdate, limiter: AsyncLimiter):
         self._api = telegram_api
         self._update = update
+        self._limiter: AsyncLimiter | None = limiter
 
     @property
     def bot_id(self) -> int:
@@ -27,6 +30,8 @@ class TelegramBot(AbstractBot):
 
         if chat_id is None:
             raise ValueError(f"Not enough params! ({chat_id=})")
+
+        await self._limiter.acquire()
 
         return await self._api.send_message(
             chat_id,
@@ -47,6 +52,8 @@ class TelegramBot(AbstractBot):
         if chat_id is None:
             raise ValueError(f"Not enough params! ({chat_id=})")
 
+        await self._limiter.acquire()
+
         return await self._api.send_photo(chat_id, photo_path, text)
 
     async def send_voice(
@@ -62,6 +69,8 @@ class TelegramBot(AbstractBot):
         if chat_id is None:
             raise ValueError(f"Not enough params! ({chat_id=})")
 
+        await self._limiter.acquire()
+
         return await self._api.send_voice(chat_id, voice_path, text)
 
     async def send_video(
@@ -76,6 +85,8 @@ class TelegramBot(AbstractBot):
 
         if chat_id is None:
             raise ValueError(f"Not enough params! ({chat_id=})")
+
+        await self._limiter.acquire()
 
         return await self._api.send_video(chat_id, video_path, text)
 
@@ -101,6 +112,8 @@ class TelegramBot(AbstractBot):
         if not chat_id or not message_id:
             raise ValueError(f"Not enough params! ({chat_id=}, {message_id=})")
 
+        await self._limiter.acquire()
+
         if text is None:
             await self._api.edit_reply_markup(chat_id, message_id, inline_keyboard)
         else:
@@ -121,6 +134,8 @@ class TelegramBot(AbstractBot):
 
         if not chat_id or not message_id:
             raise ValueError(f"Not enough params! ({chat_id=}, {message_id=})")
+
+        await self._limiter.acquire()
 
         await self._api.delete_message(chat_id, message_id)
 
@@ -146,5 +161,7 @@ class TelegramBot(AbstractBot):
 
         if not chat_id or not user_id:
             raise ValueError(f"Not enough params! ({chat_id=}, {user_id=})")
+
+        await self._limiter.acquire()
 
         return await self._api.get_user(user_id=user_id, chat_id=chat_id)

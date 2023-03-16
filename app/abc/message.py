@@ -5,11 +5,13 @@ from typing import Self
 from dacite import from_dict, Config
 from orjson import orjson
 
+from app.bot.updates import BotUpdate
 from app.game.models import DelayedMessage
 
 
 @dataclass(slots=True)
 class Message(ABC):
+    update: BotUpdate
     """
     Сообщение, которым будут между собой обмениваться
     обработчики через шину сообщений.

@@ -1,4 +1,4 @@
-from functools import singledispatchmethod
+from aiolimiter import AsyncLimiter
 
 from app.abc.bot import AbstractBot
 from app.bot.enums import Origin
@@ -20,19 +20,7 @@ class BotProxy:
         self._telegram_api = TelegramAPIAccessor(app)
         self._vk_api = VkAPIAccessor(app)
 
-    @singledispatchmethod
-    def __call__(self, obj: object) -> AbstractBot:
-        pass
-
-    @__call__.register
-    def _(self, origin: Origin) -> AbstractBot:
-        print(f"{origin=}")
-        if origin == Origin.TELEGRAM:
-            return TelegramBot(self._telegram_api)
-        return VkBot(self._vk_api)
-
-    @__call__.register
-    def _(self, update: BotUpdate) -> AbstractBot:
+    def __call__(self, update: BotUpdate, limiter: AsyncLimiter) -> AbstractBot:
         if update.origin == Origin.TELEGRAM:
-            return TelegramBot(self._telegram_api, update)
+            return TelegramBot(self._telegram_api, update, limiter)
         return VkBot(self._vk_api, update)
