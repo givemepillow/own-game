@@ -85,16 +85,6 @@ class PlayerAnswer(BotView):
         self.app.bus.publish(commands.Answer(update))
 
 
-@action(chat_type=ChatType.GROUP)
-class NewGroup(BotView):
-    async def handle(self, update: BotAction):
-        if abs(update.target_id) == self.app.bot(update).bot_id:
-            user = await self.app.bot(update).get_user()
-            await self.app.bot(update).send(
-                f"{user.mention}, благодарю за приглашение!\nНе забудь предоставить мне доступ к сообщениям."
-            )
-
-
 @callback_query(chat_type=ChatType.GROUP, data_type=CallbackType.GIVE_CAT)
 class GiveCat(BotView):
     async def handle(self, update: BotCallbackQuery):
@@ -115,6 +105,5 @@ VIEWS = [
     AcceptAnswer,
     RejectAnswer,
     BecomeLeading,
-    NewGroup,
     GiveCat
 ]
