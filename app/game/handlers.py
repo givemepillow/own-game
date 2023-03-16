@@ -240,7 +240,6 @@ class QuestionSelector(Handler):
                     msg.update.origin, msg.update.chat_id,
                     delay=Delay.PAUSE
                 )
-
                 await self.app.bus.postpone_publish(
                     commands.ShowPress(
                         msg.update,
@@ -250,10 +249,10 @@ class QuestionSelector(Handler):
                     delay=question.duration + Delay.PAUSE
                 )
 
-                if msg.update.origin == Origin.VK:
-                    await self.bot.send(text)
-                else:
-                    await self.bot.edit(text, message_id=msg.update.message_id)
+            if msg.update.origin == Origin.VK:
+                await self.bot.send(text)
+            else:
+                await self.bot.edit(text, message_id=msg.update.message_id)
 
 
 class ShowQuestion(Handler):
