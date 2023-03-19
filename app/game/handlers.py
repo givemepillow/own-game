@@ -2,7 +2,7 @@ from random import choice
 
 from sqlalchemy.exc import IntegrityError
 
-from app.abc.handler import Handler
+from app.abc.handler import Handler, LimitedHandler
 from app.bot.enums import Origin
 
 from app.game import commands, events, tools, texts
@@ -12,7 +12,7 @@ from app.game import keyboards as kb
 from app.web.application import Application
 
 
-class GameCreator(Handler):
+class GameCreator(LimitedHandler):
     async def handler(self, msg: commands.Play):
         try:
             async with self.app.store.db() as uow:
@@ -39,7 +39,7 @@ class GameCreator(Handler):
             pass
 
 
-class GameLeading(Handler):
+class GameLeading(LimitedHandler):
     async def handler(self, msg: commands.SetLeading):
         async with self.lock[msg.update.chat_id]:
             async with self.app.store.db() as uow:
@@ -72,7 +72,7 @@ class GameLeading(Handler):
                 )
 
 
-class GameRegistration(Handler):
+class GameRegistration(LimitedHandler):
     async def handler(self, msg: commands.StartRegistration):
         await self.bot.edit(
             tools.players_list([]) + f"\n\n{texts.delay(Delay.REGISTRATION)}",
@@ -85,7 +85,7 @@ class GameRegistration(Handler):
         )
 
 
-class GameDestroyer(Handler):
+class GameDestroyer(LimitedHandler):
     async def handler(self, msg: commands.CancelGame):
         async with self.app.store.db() as uow:
             if not (game := await uow.games.get(msg.update.origin, msg.update.chat_id)):
@@ -109,7 +109,7 @@ class GameDestroyer(Handler):
                 await self.bot.send("🔌 ИГРА ДОСРОЧНО ЗАВЕРШЕНА!")
 
 
-class GameJoin(Handler):
+class GameJoin(LimitedHandler):
     async def handler(self, msg: commands.Join):
         try:
             async with self.app.store.db() as uow:
@@ -146,7 +146,7 @@ class GameJoin(Handler):
             pass
 
 
-class GameCancelJoin(Handler):
+class GameCancelJoin(LimitedHandler):
     async def handler(self, msg: commands.CancelJoin):
         async with self.app.store.db() as uow:
             player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
@@ -172,7 +172,7 @@ class GameCancelJoin(Handler):
             )
 
 
-class GameStarter(Handler):
+class GameStarter(LimitedHandler):
     async def handler(self, msg: commands.StartGame):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -204,7 +204,7 @@ class GameStarter(Handler):
                 self.app.bus.publish(commands.VkRenderQuestions(msg.update, text, msg.update.message_id))
 
 
-class QuestionSelector(Handler):
+class QuestionSelector(LimitedHandler):
     async def handler(self, msg: commands.SelectQuestion):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -300,8 +300,8 @@ class ShowPress(Handler):
         )
 
 
-class PressButton(Handler):
-    async def handler(self, msg: commands.SelectQuestion):
+class PressButton(LimitedHandler):
+    async def handler(self, msg: commands.PressButton):
         async with self.lock[msg.update.chat_id]:
             async with self.app.store.db() as uow:
                 player = await uow.players.get(msg.update.origin, msg.update.chat_id, msg.update.user_id)
@@ -339,7 +339,7 @@ class PressButton(Handler):
                 )
 
 
-class Answer(Handler):
+class Answer(LimitedHandler):
     async def handler(self, msg: commands.Answer):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -369,7 +369,7 @@ class Answer(Handler):
             )
 
 
-class PeekAnswer(Handler):
+class PeekAnswer(LimitedHandler):
     async def handler(self, msg: commands.PeekAnswer):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -381,7 +381,7 @@ class PeekAnswer(Handler):
             await self.bot.callback(f"{game.current_question.answer}")
 
 
-class AcceptAnswer(Handler):
+class AcceptAnswer(LimitedHandler):
     async def handler(self, msg: commands.AcceptAnswer):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -415,7 +415,7 @@ class AcceptAnswer(Handler):
             )
 
 
-class RejectAnswer(Handler):
+class RejectAnswer(LimitedHandler):
     async def handler(self, msg: commands.RejectAnswer):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)
@@ -741,7 +741,7 @@ class CatInBag(Handler):
             )
 
 
-class GiveCat(Handler):
+class GiveCat(LimitedHandler):
     async def handler(self, msg: commands.GiveCat):
         async with self.app.store.db() as uow:
             game = await uow.games.get(msg.update.origin, msg.update.chat_id)

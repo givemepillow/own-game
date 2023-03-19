@@ -18,15 +18,24 @@ class Handler(ABC):
         self.bot: AbstractBot | None = None
 
     async def __call__(self, msg: Message):
+        self.bot = self.app.bot(msg.update, self.limiter[msg.update.chat_id])
+
+        await self.handler(msg)
+
+    @abstractmethod
+    async def handler(self, msg: Message):
+        pass
+
+
+class LimitedHandler(Handler, ABC):
+    async def __call__(self, msg: Message):
         if not self.limiter[msg.update.chat_id].has_capacity():
             return
 
         if self.lock[msg.update.chat_id].locked():
             return
 
-        self.bot = self.app.bot(msg.update, self.limiter[msg.update.chat_id])
-
-        await self.handler(msg)
+        await super().__call__(msg)
 
     @abstractmethod
     async def handler(self, msg: Message):
