@@ -19,5 +19,5 @@ jobs:
         script: |
           cd ~/own-game
           git checkout origin/main
-          git pull
+          git pull origin main
           make update
