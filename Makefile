@@ -5,13 +5,16 @@ export DOCKER_BUILDKIT=1
 all: build up
 
 build:
-	docker-compose build
+	docker compose build
 
 up:
-	docker-compose up -d
+	docker compose up -d
 
 down:
-	docker-compose down --remove-orphans
+	docker compose down --remove-orphans
 
 logs:
-	docker-compose logs --tail=25 app
+	docker compose logs app
+
+update:
+	docker compose down --remove-orphans; docker image rm own-game:latest; docker compose build; docker compose up -d
