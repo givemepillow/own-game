@@ -40,8 +40,8 @@ def command_from_dict(**data) -> BotCommand:
                 command, *_ = text.split()
                 command = command.removeprefix('/')
             else:
-                args = text.split()
-                command = args[1] if len(args) > 1 else ''
+                args = text.split(']')
+                command = args[1].strip() if len(args) > 1 else ''
             return BotCommand(
                 command=command,
                 **update_from_dict(**data)
