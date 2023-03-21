@@ -63,7 +63,7 @@ class GameLeading(LimitedHandler):
                 else:
                     link = f"""@id{user.id} ({user.name})"""
 
-                    await self.bot.edit(f"💥 Ведущий нашёлся - {link}.")
+                await self.bot.edit(f"💥 Ведущий нашёлся - {link}.")
 
                 await self.app.bus.postpone_publish(
                     commands.StartRegistration(msg.update),
