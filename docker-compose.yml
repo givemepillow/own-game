@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: own-game
+    container_name: own-game-app
+    depends_on:
+      - postgres
+    volumes:
+      - ./data:/data
+      - ./config.yml:/config.yml
+    networks:
+      - app-network
+    command: >
+      sh -c "alembic upgrade head && python3 -m app"
+    ports:
+      - "5005:8080"
+
+  postgres:
+    image: postgres:15.1-alpine
+    container_name: own-game-database
+    environment:
+      POSTGRES_DB: "own_game"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=30"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=64MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "max_prepared_transactions=30"
+      - "-c"
+      - "random_page_cost=1.7"
+      - "-c"
+      - "temp_file_limit=1GB"
+      - "-c"
+      - "log_min_error_statement=INFO"
+      - "-c"
+      - "log_min_messages=FATAL"
+      - "-c"
+      - "log_statement=none"
+      - "-c"
+      - "log_destination=stderr"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d own_game" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 7s
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  webroot:
+
