@@ -18,7 +18,8 @@ def update_from_dict(**data):
                 origin=Origin.VK,
                 user_id=user_id,
                 chat_id=peer_id,
-                chat_type=define_chat_type(peer_id)
+                chat_type=define_chat_type(peer_id),
+                user=None
             )
         case {"object": {
             "user_id": user_id,
@@ -28,7 +29,8 @@ def update_from_dict(**data):
                 origin=Origin.VK,
                 user_id=user_id,
                 chat_id=peer_id,
-                chat_type=define_chat_type(peer_id)
+                chat_type=define_chat_type(peer_id),
+                user=None
             )
     raise ValueError("Unprocessable VK update data.")
 

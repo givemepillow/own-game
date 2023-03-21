@@ -156,6 +156,9 @@ class TelegramBot(AbstractBot):
         await self._api.answer_callback_query(callback_query_id, text)
 
     async def get_user(self, chat_id: int | None = None, user_id: int | None = None) -> BotUser:
+        if not chat_id and not user_id and self._update is not None:
+            return self._update.user
+
         if self._update is not None:
             chat_id, user_id = chat_id or self._update.chat_id, user_id or self._update.user_id
 

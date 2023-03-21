@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from app.bot.inline import CallbackData
 from app.bot.enums import Origin, ChatType, ActionType
+from app.bot.user import BotUser
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,6 +12,7 @@ class BotUpdate(ABC):
     chat_id: int
     chat_type: ChatType | str
     origin: Origin | str
+    user: BotUser | None
 
     def __str__(self):
         return f"{self.__class__.__name__}[{self.origin}]"

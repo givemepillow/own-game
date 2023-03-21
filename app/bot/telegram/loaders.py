@@ -4,22 +4,29 @@ from app.bot.updates import Origin
 from app.bot.enums import ChatType, ActionType
 from app.bot.inline import CallbackData
 from app.bot.updates import BotCommand, BotAction, BotMessage, BotCallbackQuery
+from app.bot.user import BotUser
 
 
 def update_from_dict(**data):
     match data:
         case {"message": {
-            "from": {"id": user_id},
+            "from": {"id": user_id} as from_,
             "chat": {"id": chat_id, "type": chat_type}
         }}:
             return dict(
                 origin=Origin.TELEGRAM,
                 user_id=user_id,
                 chat_id=chat_id,
-                chat_type=ChatType.PRIVATE if chat_type == 'private' else ChatType.GROUP
+                chat_type=ChatType.PRIVATE if chat_type == 'private' else ChatType.GROUP,
+                user=BotUser(
+                    id=user_id,
+                    first_name=from_.get('first_name'),
+                    last_name=from_.get('last_name'),
+                    username=from_.get('username')
+                )
             )
         case {"callback_query": {
-            "from": {"id": user_id},
+            "from": {"id": user_id} as from_,
             "message": {"chat": {"id": chat_id, "type": chat_type}}
         }}:
             return dict(
@@ -27,6 +34,12 @@ def update_from_dict(**data):
                 user_id=user_id,
                 chat_id=chat_id,
                 chat_type=ChatType.PRIVATE if chat_type == 'private' else ChatType.GROUP,
+                user=BotUser(
+                    id=user_id,
+                    first_name=from_.get('first_name'),
+                    last_name=from_.get('last_name'),
+                    username=from_.get('username')
+                )
             )
     raise ValueError("Unprocessable update data.")
 
