@@ -92,7 +92,17 @@ class DelayedMessageRepository(AbstractRepository):
     async def get(self, origin: Origin, chat_id: int, user_id: int) -> DelayedMessage:
         pass
 
-    async def list(self) -> list[DelayedMessage]:
+    async def list(
+            self,
+            origin: Origin | None = None,
+            chat_id: int | None = None
+    ) -> list[DelayedMessage]:
+        if origin and chat_id:
+            return list((await self.session.execute(
+                select(DelayedMessage).where(
+                    DelayedMessage.origin == origin and DelayedMessage.chat_id == chat_id
+                )
+            )).scalars())
         return list((await self.session.execute(select(DelayedMessage))).scalars())
 
     async def delete(self, name: str, origin: Origin, chat_id: int):

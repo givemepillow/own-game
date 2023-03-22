@@ -100,6 +100,8 @@ class GameDestroyer(LimitedHandler):
 
             await uow.commit()
 
+            await self.app.bus.cancel_all(msg.update.origin, msg.update.chat_id)
+
             if game.state not in (GameState.REGISTRATION, GameState.WAITING_FOR_LEADING):
                 await self.bot.send(
                     f"🔌 ИГРА ДОСРОЧНО ЗАВЕРШЕНА!\n\n"

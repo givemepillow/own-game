@@ -85,6 +85,21 @@ class MessageBus(CleanupCTX):
             await uow.delayed_messages.delete(message_class.__name__, origin, chat_id)
             await uow.commit()
 
+    async def cancel_all(self, origin: Origin, chat_id: int):
+        """
+        Отменяет ранее отложенную команд ил сообщение.
+        :param origin: - необходимо для идентификации событий и команд.
+        :param chat_id: - необходимо для идентификации событий и команд.
+        """
+
+        async with self.app.store.db() as uow:
+            delayed_messages = await uow.delayed_messages.list(origin, chat_id)
+            for dm in delayed_messages:
+                message = Message.from_model(dm)
+                await self.cancel(message.__class__, dm.origin, dm.chat_id)
+
+        print(self._delayed_messages)
+
     async def force_publish(self, message_class: Type[Message], origin: Origin, chat_id: int):
         """
         Немедленно опубликовать отложенное сообщение.
@@ -114,7 +129,7 @@ class MessageBus(CleanupCTX):
 
     @staticmethod
     def _hash(message_type: Type[Message], origin: Origin, chat_id: int):
-        return hash((message_type, origin, chat_id))
+        return hash((message_type.__name__, origin, chat_id))
 
     def _done_callback(self, future: Future):
         try:
