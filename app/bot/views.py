@@ -1,3 +1,5 @@
+from aiolimiter import AsyncLimiter
+
 from app.abc.bot_view import BotView
 from app.bot.enums import ChatType
 from app.bot.updates import BotCommand, BotCallbackQuery, BotMessage, BotAction
@@ -91,6 +93,14 @@ class GiveCat(BotView):
         self.app.bus.publish(commands.GiveCat(update, int(update.callback_data.value)))
 
 
+@action(chat_type=ChatType.GROUP)
+class Hello(BotView):
+    limiter = AsyncLimiter(1)
+
+    async def handle(self, update: BotCallbackQuery):
+        await self.app.bot(update, self.limiter).send("Всем привет!")
+
+
 VIEWS = [
     CallbackPlug,
     PlayBotCommand,
@@ -105,5 +115,6 @@ VIEWS = [
     AcceptAnswer,
     RejectAnswer,
     BecomeLeading,
-    GiveCat
+    GiveCat,
+    Hello
 ]

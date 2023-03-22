@@ -66,7 +66,7 @@ class MediaView(View):
         question_id = int(self.request.match_info['question_id'])
 
         async with self.app.store.db() as uow:
-            theme = await uow.themes.get()
+            theme = await uow.themes.get(theme_id)
             if theme is None:
                 return error_json_response(http_status=404, message="Specific theme not found!")
             for q in theme.questions:
@@ -90,7 +90,7 @@ class MediaView(View):
         question_id = int(self.request.match_info['question_id'])
 
         async with self.app.store.db() as uow:
-            theme = await uow.themes.get()
+            theme = await uow.themes.get(theme_id)
             if theme is None:
                 return error_json_response(http_status=404, message="Specific theme not found!")
             for q in theme.questions:
