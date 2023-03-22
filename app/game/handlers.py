@@ -113,39 +113,40 @@ class GameDestroyer(LimitedHandler):
 
 class GameJoin(LimitedHandler):
     async def handler(self, msg: commands.Join):
-        try:
-            async with self.app.store.db() as uow:
+        async with self.lock[msg.update.chat_id]:
+            try:
+                async with self.app.store.db() as uow:
 
-                game = await uow.games.get(msg.update.origin, msg.update.chat_id)
+                    game = await uow.games.get(msg.update.origin, msg.update.chat_id)
 
-                if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
-                    return
+                    if not game or game.state != GameState.REGISTRATION or game.leading_user_id == msg.update.user_id:
+                        return
 
-                if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT(msg.update.origin):
-                    return
+                    if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT(msg.update.origin):
+                        return
 
-                user = await self.bot.get_user()
+                    user = await self.bot.get_user()
 
-                game.register(Player(
-                    origin=msg.update.origin,
-                    user_id=msg.update.user_id,
-                    chat_id=msg.update.chat_id,
-                    name=user.name[:99],
-                    username=user.username
-                ))
+                    game.register(Player(
+                        origin=msg.update.origin,
+                        user_id=msg.update.user_id,
+                        chat_id=msg.update.chat_id,
+                        name=user.name[:99],
+                        username=user.username
+                    ))
 
-                await uow.commit()
+                    await uow.commit()
 
-                await self.bot.edit(
-                    tools.players_list(game.players) + f"\n\n{texts.delay(Delay.REGISTRATION)}",
-                    inline_keyboard=kb.make_registration(
-                        len(game.players),
-                        limit=GameConfig.MAX_PLAYERS_COUNT(msg.update.origin)
+                    await self.bot.edit(
+                        tools.players_list(game.players) + f"\n\n{texts.delay(Delay.REGISTRATION)}",
+                        inline_keyboard=kb.make_registration(
+                            len(game.players),
+                            limit=GameConfig.MAX_PLAYERS_COUNT(msg.update.origin)
+                        )
                     )
-                )
 
-        except IntegrityError:
-            pass
+            except IntegrityError:
+                pass
 
 
 class GameCancelJoin(LimitedHandler):
