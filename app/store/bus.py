@@ -98,8 +98,6 @@ class MessageBus(CleanupCTX):
                 message = Message.from_model(dm)
                 await self.cancel(message.__class__, dm.origin, dm.chat_id)
 
-        print(self._delayed_messages)
-
     async def force_publish(self, message_class: Type[Message], origin: Origin, chat_id: int):
         """
         Немедленно опубликовать отложенное сообщение.

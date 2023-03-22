@@ -187,7 +187,7 @@ class GameStarter(LimitedHandler):
                 await self.bot.callback('Только ведущий может начать игру!')
                 return
 
-            if len(game.players) >= GameConfig.MAX_PLAYERS_COUNT(msg.update.origin):
+            if len(game.players) > GameConfig.MAX_PLAYERS_COUNT(msg.update.origin):
                 return
 
             await self.app.bus.cancel(events.RegistrationTimeout, msg.update.origin, msg.update.chat_id)

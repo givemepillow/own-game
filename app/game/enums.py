@@ -36,7 +36,7 @@ class Delay(IntEnum):
     WAIT_PRESS = 20
     WAIT_ANSWER = 15
     WAIT_CHECKING = 25
-    PAUSE = 6
+    PAUSE = 5
     LITTLE_PAUSE = 4
 
 
