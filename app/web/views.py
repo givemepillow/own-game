@@ -1,15 +1,51 @@
 from uuid import uuid4
 
+from aiohttp.web_exceptions import HTTPUnauthorized
 from aiohttp_apispec import request_schema, response_schema, docs
+from aiohttp_session import new_session, get_session
 from sqlalchemy.exc import IntegrityError
 
+from app.admin.models import SessionAdmin
 from app.game.models import Theme
 from app.utils.responses import json_response, error_json_response
-from app.web.application import View
+from app.web.application import View, AuthRequired
 from app.web.schemas import NewThemeSchema, ThemeSchema, ResponseThemesSchema, EditThemeSchema, EditQuestionSchema, \
-    ResponseThemeSchema
+    ResponseThemeSchema, LoginAdminSchema, AdminSchema
 
 
+class SessionView(View):
+    @docs(tags=["session"])
+    @request_schema(LoginAdminSchema)
+    @response_schema(AdminSchema, 200)
+    async def post(self):
+        async with self.app.store.db() as uow:
+            admin = await uow.admins.get(self.data['email'])
+            if admin and admin.is_password_valid(self.data['password']):
+                verified_admin = AdminSchema().dump(admin)
+                session = await new_session(self.request)
+                session['admin'] = verified_admin
+                return json_response(data=verified_admin)
+        return error_json_response(message="invalid email or password", http_status=403)
+
+    @docs(tags=["session"])
+    @response_schema(AdminSchema, 200)
+    async def get(self):
+        session = await get_session(self.request)
+        if not session:
+            raise HTTPUnauthorized
+        admin = SessionAdmin(**(session['admin']))
+        return json_response(data=AdminSchema().dump(admin))
+
+    @docs(tags=["session"])
+    async def delete(self):
+        session = await get_session(self.request)
+        if not session:
+            raise HTTPUnauthorized
+        admin = SessionAdmin(**(session['admin']))
+        return json_response(data=AdminSchema().dump(admin))
+
+
+@AuthRequired
 class ThemesView(View):
     @docs(tags=["themes"])
     @request_schema(NewThemeSchema)
@@ -30,6 +66,7 @@ class ThemesView(View):
             return json_response(data=[ThemeSchema().load(t.as_dict()) for t in themes])
 
 
+@AuthRequired
 class MediaView(View):
     @docs(tags=["media"])
     async def put(self):
@@ -37,7 +74,7 @@ class MediaView(View):
         question_id = int(self.request.match_info['question_id'])
 
         async with self.app.store.db() as uow:
-            theme = await uow.themes.get(theme_id)
+            theme = await uow.themes.get()
             if theme is None:
                 return error_json_response(http_status=404, message="Specific theme not found!")
             for q in theme.questions:
@@ -61,7 +98,7 @@ class MediaView(View):
         question_id = int(self.request.match_info['question_id'])
 
         async with self.app.store.db() as uow:
-            theme = await uow.themes.get(theme_id)
+            theme = await uow.themes.get()
             if theme is None:
                 return error_json_response(http_status=404, message="Specific theme not found!")
             for q in theme.questions:
@@ -74,13 +111,14 @@ class MediaView(View):
         return error_json_response(http_status=404, message="Specific question not found!")
 
 
+@AuthRequired
 class ThemeView(View):
     @docs(tags=["theme"])
     @response_schema(ResponseThemeSchema)
     async def get(self):
         theme_id = int(self.request.match_info['theme_id'])
         async with self.app.store.db() as uow:
-            theme = await uow.themes.get(theme_id)
+            theme = await uow.themes.get()
             return json_response(data=ThemeSchema().load(theme.as_dict()))
 
     @docs(tags=["theme"])
@@ -105,7 +143,7 @@ class ThemeView(View):
         theme_id = int(self.request.match_info['theme_id'])
 
         async with self.app.store.db() as uow:
-            theme = await uow.themes.get(theme_id)
+            theme = await uow.themes.get()
             if not theme:
                 return error_json_response(http_status=404, message="Specific theme not found!")
             for q in theme.questions:
@@ -116,6 +154,7 @@ class ThemeView(View):
         return json_response(message="Theme successfully deleted!")
 
 
+@AuthRequired
 class QuestionView(View):
     @docs(tags=["question"])
     @request_schema(EditQuestionSchema)

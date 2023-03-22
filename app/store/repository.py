@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.admin.models import Admin
 from app.bot.enums import Origin
 from app.game.models import Game, Theme, Player, DelayedMessage
 
@@ -114,3 +115,16 @@ class DelayedMessageRepository(AbstractRepository):
                 (DelayedMessage.name == name)
             )
         )
+
+
+class AdminRepository(AbstractRepository):
+    def add(self, admin: Admin):
+        self.session.add(admin)
+
+    async def get(self, email: str) -> Admin:
+        return (await self.session.execute(
+            select(Admin).where(Admin.email == email)
+        )).scalar()
+
+    def list(self) -> list[object]:
+        pass

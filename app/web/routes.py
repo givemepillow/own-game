@@ -1,5 +1,5 @@
 from app.web.application import Application
-from app.web.views import ThemesView, MediaView, ThemeView, QuestionView
+from app.web.views import ThemesView, MediaView, ThemeView, QuestionView, SessionView
 
 
 def setup_web_routes(app: Application):
@@ -7,3 +7,4 @@ def setup_web_routes(app: Application):
     app.router.add_view("/themes/{theme_id}", ThemeView)
     app.router.add_view("/themes/{theme_id}/questions/{question_id}", QuestionView)
     app.router.add_view("/themes/{theme_id}/questions/{question_id}/media", MediaView)
+    app.router.add_view("/session/", SessionView)

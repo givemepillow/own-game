@@ -74,3 +74,13 @@ class EditQuestionSchema(Schema):
 
 class EditThemeSchema(Schema):
     title = fields.Str(required=True)
+
+
+class LoginAdminSchema(Schema):
+    email = fields.Str()
+    password = fields.Str()
+
+
+class AdminSchema(Schema):
+    id = fields.Int()
+    email = fields.Email()

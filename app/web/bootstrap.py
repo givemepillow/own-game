@@ -1,4 +1,6 @@
 from aiohttp_apispec import setup_aiohttp_apispec
+from aiohttp_session import setup as setup_session
+from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 from app.bot import setup_bot
 
@@ -18,6 +20,7 @@ app = Application()
 def app_factory() -> Application:
     setup_config(app)
     setup_logging(app)
+    setup_session(app, EncryptedCookieStorage(app.config.session.key, max_age=60 * 60 * 3))
     setup_middlewares(app)
     setup_aiohttp_apispec(app, title="Own game", swagger_path="/api/docs")
     setup_store(app)

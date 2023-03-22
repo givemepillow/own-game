@@ -2,7 +2,8 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.store.repository import ThemeRepository, PlayerRepository, GameRepository, DelayedMessageRepository
+from app.store.repository import ThemeRepository, PlayerRepository, GameRepository, DelayedMessageRepository, \
+    AdminRepository
 
 
 class UnitOfWork:
@@ -12,6 +13,7 @@ class UnitOfWork:
         self.players = PlayerRepository(session)
         self.games = GameRepository(session)
         self.delayed_messages = DelayedMessageRepository(session)
+        self.admins = AdminRepository(session)
 
     async def __aenter__(self) -> Self:
         return self
