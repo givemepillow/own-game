@@ -36,14 +36,6 @@ class SessionView(View):
         admin = SessionAdmin(**(session['admin']))
         return json_response(data=AdminSchema().dump(admin))
 
-    @docs(tags=["session"])
-    async def delete(self):
-        session = await get_session(self.request)
-        if not session:
-            raise HTTPUnauthorized
-        admin = SessionAdmin(**(session['admin']))
-        return json_response(data=AdminSchema().dump(admin))
-
 
 @AuthRequired
 class ThemesView(View):
