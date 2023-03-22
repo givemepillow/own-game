@@ -17,4 +17,4 @@ logs:
 	docker compose logs app
 
 update:
-	docker compose down --remove-orphans; docker image rm kirilllapushinskiy/own-game-bot; docker compose build; docker compose up -d
+	docker compose down --remove-orphans; docker image rm kirilllapushinskiy/own-game-bot:main; docker compose build; docker compose up -d
