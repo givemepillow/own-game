@@ -5,7 +5,7 @@ WORKDIR /
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-COPY ../ .
+COPY ./ .
 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
