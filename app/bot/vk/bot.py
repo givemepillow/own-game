@@ -124,7 +124,7 @@ class VkBot(AbstractBot):
             chat_id: int | None = None,
             remove_inline_keyboard: bool = False
     ):
-        if inline_keyboard is None and text is None and remove_inline_keyboard is False:
+        if inline_keyboard is None and text is None:
             raise ValueError("Nothing to edit!")
 
         if isinstance(self._update, BotCallbackQuery):
@@ -140,8 +140,7 @@ class VkBot(AbstractBot):
             chat_id=chat_id,
             conversation_message_id=message_id,
             text=text,
-            inline_keyboard=inline_keyboard,
-            remove_inline_keyboard=remove_inline_keyboard
+            inline_keyboard=inline_keyboard
         )
 
     async def callback(

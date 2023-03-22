@@ -119,8 +119,7 @@ class VkAPIAccessor(CleanupCTX):
             chat_id: int,
             conversation_message_id: int,
             text: str | None = None,
-            inline_keyboard: InlineKeyboard | None = None,
-            remove_inline_keyboard: bool = False
+            inline_keyboard: InlineKeyboard | None = None
     ):
 
         async with self._session.get(self._url("messages.edit"), params=self._params(
@@ -128,9 +127,7 @@ class VkAPIAccessor(CleanupCTX):
                 message=text or await self.get_message_text(chat_id, conversation_message_id),
                 peer_id=chat_id,
                 dont_parse_links=0,
-                **dict(
-                    keyboard=self._inline_keyboard_markup(inline_keyboard)
-                ) if inline_keyboard and not remove_inline_keyboard else {}
+                keyboard=self._inline_keyboard_markup(inline_keyboard)
         )) as response:
             match (await response.json(content_type=response.content_type, loads=orjson.loads)):
                 case {"response": 1} as data:

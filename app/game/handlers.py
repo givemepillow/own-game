@@ -231,7 +231,7 @@ class QuestionSelector(LimitedHandler):
 
             text = f"📌 {current_player.link} выбрал(a) «{theme.title} за {question.cost}»."
 
-            if game.is_cat_in_bag():
+            if msg.update.origin == Origin.TELEGRAM and game.is_cat_in_bag():
                 text += f"\n\n🐈🐈‍⬛🐈🐈‍⬛🐈🐈‍⬛🐈🐈‍⬛🐈🐈‍⬛\n\n🐱 А это оказался кот в мешке!!!"
                 await self.app.bus.postpone_publish(
                     events.CatInBag(msg.update, msg.update.message_id),
