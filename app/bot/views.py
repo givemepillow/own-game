@@ -8,11 +8,14 @@ from app.game import commands
 from app.game.keyboards import CallbackType
 
 
-@callback_query(chat_type=ChatType.GROUP, data_type='_')
-class CallbackPlug(BotView):
+@command(chat_type=ChatType.GROUP, commands=['help', 'помощь'])
+class Help(BotView):
+    limiter = AsyncLimiter(1)
+
     async def handle(self, update: BotCallbackQuery):
-        # await self.app.bot(update).callback()
-        pass
+        await self.app.bot(update, self.limiter).send(
+            "/play - Начать игру.\n/end - Отменить игру."
+        )
 
 
 @command(chat_type=ChatType.GROUP, commands=['play', 'играть', 'start', 'начать'])
@@ -102,7 +105,7 @@ class Hello(BotView):
 
 
 VIEWS = [
-    CallbackPlug,
+    Help,
     PlayBotCommand,
     GameRegistration,
     GameCancelRegistration,
