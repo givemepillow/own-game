@@ -43,7 +43,7 @@ class Delay(IntEnum):
 class GameConfig(IntEnum):
     MIN_PLAYERS_COUNT = 2
     MAX_VK_PLAYERS_COUNT = 7
-    MAX_TELEGRAM_PLAYERS_COUNT = 11
+    MAX_TELEGRAM_PLAYERS_COUNT = 7
     GAME_THEMES_COUNT = 2
 
     @classmethod
