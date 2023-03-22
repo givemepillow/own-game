@@ -6,15 +6,16 @@ from app.bot.updates import BotCommand, BotCallbackQuery, BotMessage, BotAction
 from app.bot.markers import command, callback_query, message, action
 from app.game import commands
 from app.game.keyboards import CallbackType
+from app.utils.limiter import Limiter
 
 
 @command(chat_type=ChatType.GROUP, commands=['help', 'помощь'])
 class Help(BotView):
-    limiter = AsyncLimiter(1)
+    limiter = Limiter(lambda: AsyncLimiter(1))
 
     async def handle(self, update: BotCallbackQuery):
-        if self.limiter.has_capacity():
-            await self.app.bot(update, self.limiter).send(
+        if self.limiter[update.chat_id].has_capacity():
+            await self.app.bot(update, self.limiter[update.chat_id]).send(
                 "/play - Начать игру.\n/end - Отменить игру."
             )
 
