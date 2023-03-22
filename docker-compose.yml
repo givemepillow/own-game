@@ -3,7 +3,7 @@ version: "3.9"
 services:
 
   app:
-    image: kirilllapushinskiy/own-game-bot:latest
+    image: kirilllapushinskiy/own-game-bot:main
     container_name: own-game-app
     depends_on:
       - postgres
