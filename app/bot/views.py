@@ -13,9 +13,10 @@ class Help(BotView):
     limiter = AsyncLimiter(1)
 
     async def handle(self, update: BotCallbackQuery):
-        await self.app.bot(update, self.limiter).send(
-            "/play - Начать игру.\n/end - Отменить игру."
-        )
+        if self.limiter.has_capacity():
+            await self.app.bot(update, self.limiter).send(
+                "/play - Начать игру.\n/end - Отменить игру."
+            )
 
 
 @command(chat_type=ChatType.GROUP, commands=['play', 'играть', 'start', 'начать'])
@@ -98,9 +99,9 @@ class GiveCat(BotView):
 
 @action(chat_type=ChatType.GROUP)
 class Hello(BotView):
-    limiter = AsyncLimiter(1)
+    limiter = AsyncLimiter(10)
 
-    async def handle(self, update: BotCallbackQuery):
+    async def handle(self, update: BotAction):
         await self.app.bot(update, self.limiter).send("Всем привет!")
 
 
