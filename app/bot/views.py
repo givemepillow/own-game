@@ -136,6 +136,5 @@ VIEWS = [
     AcceptAnswer,
     RejectAnswer,
     BecomeLeading,
-    GiveCat,
-    Hello
+    GiveCat
 ]
