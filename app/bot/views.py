@@ -1,7 +1,7 @@
 from aiolimiter import AsyncLimiter
 
 from app.abc.bot_view import BotView
-from app.bot.enums import ChatType
+from app.bot.enums import ChatType, Origin
 from app.bot.updates import BotCommand, BotCallbackQuery, BotMessage, BotAction
 from app.bot.markers import command, callback_query, message, action
 from app.game import commands
@@ -9,14 +9,29 @@ from app.game.keyboards import CallbackType
 from app.utils.limiter import Limiter
 
 
-@command(chat_type=ChatType.GROUP, commands=['help', 'помощь'])
-class Help(BotView):
+@command(chat_type=ChatType.GROUP, commands=['help', 'помощь'], origin=Origin.TELEGRAM)
+class HelpTelegram(BotView):
     limiter = Limiter(lambda: AsyncLimiter(1))
 
     async def handle(self, update: BotCallbackQuery):
         if self.limiter[update.chat_id].has_capacity():
             await self.app.bot(update, self.limiter[update.chat_id]).send(
-                "/play - Начать игру.\n/end - Отменить игру."
+                "/play - Начать игру.\n"
+                "/end - Отменить игру.\n"
+                "/help - Справка по командам."
+            )
+
+
+@command(chat_type=ChatType.GROUP, commands=['help', 'помощь'], origin=Origin.VK)
+class HelpVk(BotView):
+    limiter = Limiter(lambda: AsyncLimiter(1))
+
+    async def handle(self, update: BotCallbackQuery):
+        if self.limiter[update.chat_id].has_capacity():
+            await self.app.bot(update, self.limiter[update.chat_id]).send(
+                "@имя_бота играть - Начать игру.\n"
+                "@имя_бота отменить - Отменить игру.\n"
+                "@имя_бота помощь - Справка по командам."
             )
 
 
@@ -107,7 +122,8 @@ class Hello(BotView):
 
 
 VIEWS = [
-    Help,
+    HelpTelegram,
+    HelpVk,
     PlayBotCommand,
     GameRegistration,
     GameCancelRegistration,
